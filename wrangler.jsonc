@@ -3,6 +3,7 @@
   "name": "tank-tactics-cf",
   "main": "src/worker.js",
   "compatibility_date": "2026-09-01",
+  "routes": [{ "pattern": "tanks.0801564.xyz", "custom_domain": true }],
   "assets": {
     "directory": "./public",
     "not_found_handling": "single-page-application",
