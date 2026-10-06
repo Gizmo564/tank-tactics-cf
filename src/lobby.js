@@ -44,7 +44,10 @@ export function joinLobby(db, userId, username, callsign, colorId, team) {
   if (db.players.some(p => p.userId !== userId && p.callsign.toLowerCase() === cleanCallsign.toLowerCase())) {
     return { ok: false, error: 'Someone in this game already has that callsign' };
   }
-  const color = COLORS.find(c => c.id === colorId) || COLORS[db.players.length % COLORS.length];
+  // A color already worn by another tank (or an unknown id) falls back to the first free one.
+  const takenColors = new Set(db.players.filter(p => p.userId !== userId).map(p => p.colorId));
+  let color = COLORS.find(c => c.id === colorId);
+  if (!color || takenColors.has(color.id)) color = COLORS.find(c => !takenColors.has(c.id)) || color || COLORS[0];
   let assignedTeam = null;
   if (cfg.teamsEnabled) {
     const teamCount = cfg.teamCount || 2;

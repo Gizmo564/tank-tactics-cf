@@ -1,0 +1,563 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+/* ---------- Color themes ----------
+   Each theme is just a swap of these custom properties, toggled by setting
+   data-theme on <html>. "Sunrise" (the original look) is both the :root
+   fallback and the explicit default so the page never flashes unstyled.
+
+   Two extra variables exist purely to keep text readable across themes:
+   --ink-on-light is a color guaranteed dark, for text sitting on the
+   bright/pastel surfaces (accent-2 badges, colored log-line chips) that
+   every theme keeps light-toned by design — in a light theme this equals
+   --ink already; in a dark theme (Dusk) it's the theme's own dark tone
+   instead of its (light) --ink. --accent-text is --accent tuned specifically
+   for use as small foreground text against --paper, since the same hex that
+   looks great as white-on-accent button fill isn't automatically legible as
+   accent-on-paper body text once the background goes dark. */
+:root,
+html[data-theme="sunrise"] {
+  --cream: #faf3e6;
+  --cream-2: #f2e8d5;
+  --paper: #fffdf8;
+  --ink: #2b2620;
+  --ink-soft: #6b6255;
+  --line: #2b2620;
+  --accent: #ff6b4a;
+  --accent-text: #ff6b4a;
+  --accent-2: #ffb84a;
+  --good: #3f9e6b;
+  --bad: #e0553f;
+  --ink-on-light: #2b2620;
+  --shadow: 4px 4px 0 rgba(43, 38, 32, 0.9);
+  --shadow-sm: 2px 2px 0 rgba(43, 38, 32, 0.9);
+  --radius: 14px;
+}
+
+html[data-theme="dusk"] {
+  --cream: #1c1a24;
+  --cream-2: #262330;
+  --paper: #242030;
+  --ink: #efe9f5;
+  --ink-soft: #b6aed0;
+  --line: #efe9f5;
+  /* Darker/more saturated than the other themes' accents on purpose — this
+     one has to stay legible under white button text on a dark page, where
+     a light "neon" pink would wash out. */
+  --accent: #c23f7c;
+  --accent-text: #ff9dc9;
+  --accent-2: #ffd76a;
+  --good: #17753f;
+  --bad: #c23f3f;
+  --ink-on-light: #1c1a24;
+  --shadow: 4px 4px 0 rgba(0, 0, 0, 0.6);
+  --shadow-sm: 2px 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme="forest"] {
+  --cream: #eef3e4;
+  --cream-2: #e2ead0;
+  --paper: #fbfdf6;
+  --ink: #243318;
+  --ink-soft: #5b6b4a;
+  --line: #243318;
+  --accent: #3f8f4f;
+  --accent-text: #3f8f4f;
+  --accent-2: #d9a441;
+  --good: #2f9e6b;
+  --bad: #c0503a;
+  --ink-on-light: #243318;
+  --shadow: 4px 4px 0 rgba(36, 51, 24, 0.9);
+  --shadow-sm: 2px 2px 0 rgba(36, 51, 24, 0.9);
+}
+
+html[data-theme="ocean"] {
+  --cream: #e8f2f5;
+  --cream-2: #d8e9ee;
+  --paper: #fbfeff;
+  --ink: #173441;
+  --ink-soft: #4d7889;
+  --line: #173441;
+  --accent: #2596be;
+  --accent-text: #2596be;
+  --accent-2: #f2a154;
+  --good: #2f9e6b;
+  --bad: #e0553f;
+  --ink-on-light: #173441;
+  --shadow: 4px 4px 0 rgba(23, 52, 65, 0.9);
+  --shadow-sm: 2px 2px 0 rgba(23, 52, 65, 0.9);
+}
+
+html[data-theme="blush"] {
+  --cream: #faeef2;
+  --cream-2: #f5dde6;
+  --paper: #fffbfc;
+  --ink: #3a2430;
+  --ink-soft: #8a6478;
+  --line: #3a2430;
+  --accent: #e0507e;
+  --accent-text: #e0507e;
+  --accent-2: #f2b84a;
+  --good: #3f9e6b;
+  --bad: #c0453f;
+  --ink-on-light: #3a2430;
+  --shadow: 4px 4px 0 rgba(58, 36, 48, 0.9);
+  --shadow-sm: 2px 2px 0 rgba(58, 36, 48, 0.9);
+}
+
+* { box-sizing: border-box; }
+
+.icon { display: inline-block; vertical-align: -3px; flex-shrink: 0; }
+.icon-btn { display: inline-flex; align-items: center; gap: 6px; }
+.mark svg, .mark-big svg { color: #fff; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100%;
+}
+
+body {
+  background-image:
+    radial-gradient(circle, rgba(43,38,32,0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+h1, h2, h3, h4, .display {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+a { color: inherit; }
+
+button {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  cursor: pointer;
+}
+
+#app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 16px 60px;
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand .mark {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: var(--accent);
+  border: 3px solid var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.brand-text { font-size: 22px; }
+.brand-text small { display: block; font-family: 'Inter', sans-serif; font-weight: 500; font-size: 11px; color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+.who { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-soft); }
+.who b { color: var(--ink); }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 3px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.05s ease;
+  text-decoration: none; /* .btn is also used on <a> tags (e.g. backup download) */
+  cursor: pointer;
+}
+.btn:hover { transform: translate(-1px, -1px); }
+.btn:active { transform: translate(1px, 1px); box-shadow: none; }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.good { background: var(--good); color: #fff; }
+.btn.bad { background: var(--bad); color: #fff; }
+.btn.ghost { background: transparent; box-shadow: none; border-color: var(--ink-soft); color: var(--ink-soft); }
+.btn.sm { padding: 6px 10px; font-size: 12px; border-width: 2px; box-shadow: none; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: var(--shadow-sm); }
+.btn.block { width: 100%; justify-content: center; }
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+.card + .card { margin-top: 16px; }
+
+/* ---------- Auth ---------- */
+.auth-wrap { max-width: 380px; margin: 60px auto; text-align: center; }
+.auth-wrap .mark-big {
+  width: 72px; height: 72px; margin: 0 auto 16px;
+  background: var(--accent); border: 3px solid var(--ink); border-radius: 16px;
+  display: flex; align-items: center; justify-content: center; font-size: 34px;
+  box-shadow: var(--shadow);
+}
+.field { text-align: left; margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); margin-bottom: 6px; }
+.field input, .field select {
+  width: 100%;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--paper);
+  color: var(--ink);
+}
+.field input:focus, .field select:focus { outline: 3px solid var(--accent-2); outline-offset: 1px; }
+.tabs { display: flex; gap: 8px; margin-bottom: 18px; justify-content: center; }
+.tabs button {
+  border: 3px solid var(--ink); background: var(--cream-2); border-radius: 10px;
+  padding: 8px 16px; font-weight: 600; font-size: 13px;
+}
+.tabs button.active { background: var(--ink); color: var(--cream); }
+.error-msg { background: #fde3dd; border: 2px solid var(--bad); color: #8f2c1c; padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+.hint { font-size: 12px; color: var(--ink-soft); margin-top: 10px; }
+
+/* ---------- Lobby list ---------- */
+.section-head { display: flex; align-items: center; justify-content: space-between; margin: 26px 0 12px; }
+.section-head h2 { font-size: 20px; }
+.game-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: var(--shadow-sm);
+}
+.game-row + .game-row { margin-top: 10px; }
+.game-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; }
+.game-meta { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.badge {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  border: 2px solid var(--ink);
+}
+.badge.lobby { background: var(--accent-2); color: var(--ink-on-light); }
+.badge.active { background: var(--good); color: #fff; border-color: var(--good); }
+.badge.ended { background: var(--cream-2); color: var(--ink-soft); }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--ink-soft); }
+.empty-state .big { font-size: 40px; margin-bottom: 10px; }
+
+.create-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.join-code-row { display: flex; gap: 8px; }
+.join-code-row input { text-transform: uppercase; letter-spacing: 0.1em; text-align: center; max-width: 140px; }
+
+/* ---------- Character setup ---------- */
+.color-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.swatch {
+  width: 42px; height: 42px; border-radius: 10px; border: 3px solid var(--ink);
+  cursor: pointer; box-shadow: var(--shadow-sm);
+}
+.swatch.selected { outline: 3px solid var(--ink); outline-offset: 3px; }
+.tank-preview {
+  width: 64px; height: 64px; border-radius: 14px; border: 3px solid var(--ink);
+  display: flex; align-items: center; justify-content: center; font-size: 30px;
+  margin: 0 auto 10px; box-shadow: var(--shadow);
+}
+
+/* ---------- Waiting room ---------- */
+.code-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--ink); color: var(--cream); border-radius: 10px;
+  padding: 8px 14px; font-family: 'Space Grotesk', monospace; font-weight: 700; letter-spacing: 0.15em; font-size: 18px;
+}
+.roster { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.roster-chip {
+  display: flex; align-items: center; gap: 8px;
+  border: 3px solid var(--ink); border-radius: 999px; padding: 6px 14px 6px 6px;
+  background: var(--paper); box-shadow: var(--shadow-sm); font-weight: 600; font-size: 13px;
+}
+.dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink); }
+
+/* ---------- Game board ---------- */
+.game-layout { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .game-layout { grid-template-columns: 1fr; } }
+
+.board-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-bottom: 8px; }
+.board-toolbar .zoom-label { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 12px; color: var(--ink-soft); min-width: 40px; text-align: center; }
+.board-toolbar button { border: 2px solid var(--ink); background: var(--cream-2); border-radius: 8px; width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.board-toolbar button:hover { background: var(--accent-2); color: var(--ink-on-light); }
+.board-wrap { overflow: auto; max-height: 72vh; border: 3px solid var(--ink); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); padding: 12px; }
+.stat-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 14px; }
+.stat-row .label { color: var(--ink-soft); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-row .val { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; }
+
+.dpad { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); gap: 4px; margin: 10px auto; width: fit-content; }
+.dpad button { border: 2px solid var(--ink); background: var(--cream-2); border-radius: 8px; font-size: 15px; padding: 0; }
+.dpad button:hover { background: var(--accent-2); color: var(--ink-on-light); }
+.dpad .center { background: var(--ink); color: var(--cream); font-size: 11px; display: flex; align-items: center; justify-content: center; }
+.dpad .center .icon { vertical-align: 0; }
+
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.action-mode { border: 2px solid var(--ink); }
+.action-mode.active { background: var(--accent); color: #fff; }
+
+.log-feed { max-height: 220px; overflow-y: auto; font-size: 12.5px; display: flex; flex-direction: column-reverse; gap: 4px; }
+.log-line { padding: 4px 8px 4px 7px; border-radius: 6px; background: var(--cream-2); border-left: 4px solid transparent; }
+/* These stay fixed light pastels in every theme (including Dusk) as little
+   colored "chips" — so their text is pinned to a guaranteed-dark color
+   instead of following the theme's normal (sometimes light) --ink. */
+.log-line.kill { background: #fde3dd; color: var(--ink-on-light); }
+.log-line.heart, .log-line.heal, .log-line.revive { background: #e6f5ea; color: var(--ink-on-light); }
+.log-line.system { background: #eee6f7; color: var(--ink-on-light); }
+
+.chat-feed { max-height: 200px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.chat-msg b { margin-right: 4px; }
+.chat-msg.whisper { color: var(--accent-text); font-style: italic; }
+.chat-input-row { display: flex; gap: 6px; }
+.chat-input-row input { flex: 1; }
+
+.panel-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); margin-bottom: 8px; }
+
+.toast-wrap { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 50; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.toast { background: var(--ink); color: var(--cream); padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: var(--shadow); }
+.toast.bad { background: var(--bad); }
+.toast.good { background: var(--good); }
+
+.small-muted { font-size: 12px; color: var(--ink-soft); }
+.flex-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.gap-8 { display: flex; gap: 8px; flex-wrap: wrap; }
+.mt-10 { margin-top: 10px; }
+.mt-16 { margin-top: 16px; }
+.mb-8 { margin-bottom: 8px; }
+.hidden { display: none !important; }
+
+.victory-banner { background: var(--accent); color: #fff; text-align: center; margin-bottom: 16px; }
+.victory-banner .panel-title { color: rgba(255,255,255,0.85); }
+.victory-banner p { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; }
+.log-line.victory { background: var(--accent); color: #fff; font-weight: 700; }
+
+.target-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+.target-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 8px; background: var(--cream-2); }
+.target-row button { padding: 5px 10px; }
+
+.modal-backdrop { position: fixed; inset: 0; background: rgba(43,38,32,0.5); display: flex; align-items: center; justify-content: center; z-index: 60; padding: 16px; }
+.modal { background: var(--paper); border: 3px solid var(--ink); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; max-width: 380px; width: 100%; }
+
+/* ---------- Theme toggle (fixed, sits outside the router) ----------
+   Bottom-right floating button, deliberately away from every screen's
+   top-right topbar controls (logout, back, etc.) so it never overlaps them. */
+.theme-toggle-btn {
+  position: fixed; bottom: 18px; right: 18px; z-index: 70;
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 3px solid var(--ink); background: var(--paper); color: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-sm); cursor: pointer;
+}
+.theme-toggle-btn:hover { transform: translate(-1px, -1px); }
+.theme-panel {
+  position: fixed; bottom: 70px; right: 18px; z-index: 70;
+  background: var(--paper); border: 3px solid var(--ink); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 10px; width: 190px;
+}
+.theme-option {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  border: none; background: transparent; border-radius: 8px;
+  padding: 8px 10px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--ink);
+  cursor: pointer; text-align: left;
+}
+.theme-option:hover { background: var(--cream-2); }
+.theme-option.active { background: var(--accent-2); color: var(--ink-on-light); }
+.theme-option .swatch-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--ink); flex-shrink: 0; }
+
+/* ---------- Wizard ---------- */
+.preset-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; align-items: stretch; }
+.preset-card {
+  border: 3px solid var(--ink); border-radius: 12px; padding: 14px; background: var(--paper);
+  cursor: pointer; box-shadow: var(--shadow-sm); text-align: left;
+  display: flex; flex-direction: column; height: 100%;
+}
+.preset-card.selected { background: var(--accent-2); color: var(--ink-on-light); }
+.preset-card.selected .p-blurb { color: var(--ink-on-light); opacity: 0.75; }
+.preset-card .p-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; }
+.preset-card .p-blurb { font-size: 12px; color: var(--ink-soft); margin-top: 4px; flex: 1; }
+
+.field-group-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); margin: 18px 0 8px; }
+/* Grid of setup-wizard fields: items stretch to the same height per row by
+   default, but a field's label can still wrap to a second line and shove
+   its input down out of alignment with shorter-labeled neighbors. Reserving
+   a fixed label height and anchoring the input to the bottom of the cell
+   keeps every input in a row lined up regardless of label length. */
+.field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: stretch; }
+.field-grid .field { display: flex; flex-direction: column; margin-bottom: 0; }
+.field-grid .field label { min-height: 32px; display: flex; align-items: flex-end; margin-bottom: 6px; }
+.field-grid .field input, .field-grid .field select { margin-top: auto; }
+.field-checkbox { display: flex; align-items: center; gap: 8px; padding: 10px 0; align-self: end; }
+.field-checkbox input { width: 18px; height: 18px; flex-shrink: 0; }
+.field-checkbox label { margin: 0; text-transform: none; font-size: 14px; font-weight: 500; color: var(--ink); min-height: 0; display: inline; }
+
+/* ---------- Admin ---------- */
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); padding: 6px 8px; border-bottom: 2px solid var(--ink); }
+.admin-table td { padding: 8px; border-bottom: 1px solid var(--cream-2); vertical-align: middle; }
+.admin-table input[type=number] { width: 60px; border: 2px solid var(--ink); border-radius: 6px; padding: 4px 6px; }
+.inline-form { display: flex; gap: 6px; align-items: center; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; text-transform: uppercase; background: var(--cream-2); border: 2px solid var(--ink); }
+.admin-topbar-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--ink); color: var(--cream); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+
+/* ---------- Mobile ---------- */
+/* Form inputs stay at 16px so iOS Safari doesn't auto-zoom on focus — this
+   overrides the 15px set above, applied everywhere (not just narrow
+   viewports) since there's no real downside to it on desktop either. */
+.field input, .field select { font-size: 16px; }
+.topbar { flex-wrap: wrap; gap: 10px; row-gap: 6px; }
+.who { flex-wrap: wrap; row-gap: 6px; }
+.target-row { flex-wrap: wrap; gap: 8px; }
+.target-row > span:first-child { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
+
+@media (max-width: 640px) {
+  body { padding: 14px 10px 50px; }
+  .brand-text { font-size: 18px; }
+  .brand .mark { width: 34px; height: 34px; }
+  .board-wrap { max-height: 50vh; }
+  .card { padding: 14px; }
+  .action-grid { grid-template-columns: 1fr; }
+  .dpad { grid-template-columns: repeat(3, 36px); grid-template-rows: repeat(3, 36px); }
+  .btn { padding: 9px 12px; font-size: 13px; }
+  /* .game-row is a fixed 4-column grid on wider screens — that squeezes
+     name/badge/count/button into an unreadably cramped row on a phone, so
+     switch it to a wrapping flex row instead of trying to force more grid
+     columns into less space. */
+  .game-row { display: flex; flex-wrap: wrap; row-gap: 8px; }
+  .game-row > div:first-child { flex: 1 1 100%; }
+  .preset-grid { grid-template-columns: 1fr; }
+}
+
+/* ================= v2 additions ================= */
+:root { --board-line: color-mix(in srgb, var(--ink) 14%, transparent); }
+html { -webkit-text-size-adjust: 100%; }
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; }
+button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; }
+.btn:disabled { pointer-events: none; }
+.dpad button:disabled { opacity: .4; cursor: not-allowed; }
+.dpad button:disabled:hover { background: var(--cream-2); }
+
+.hero-tanks { display: flex; justify-content: center; align-items: flex-end; gap: 6px; margin-bottom: 10px; }
+.hero-tanks svg:nth-child(2) { animation: hero-bob 2.4s ease-in-out infinite; }
+@keyframes hero-bob { 50% { transform: translateY(-5px); } }
+.tank-art .t-shadow { fill: var(--ink); opacity: .18; }
+.tank-art .t-body, .tank-art .t-tread, .tank-art .t-barrel, .tank-art .t-cap { stroke: var(--ink); }
+.tank-art .t-body { stroke-width: 2.5; } .tank-art .t-tread { stroke-width: 2; }
+.tank-art .t-barrel { stroke-width: 2.2; } .tank-art .t-cap { stroke-width: 2.5; }
+.tank-art .t-eye { stroke: var(--ink); stroke-width: 1.5; }
+
+/* live indicator */
+.live-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border: 2px solid var(--ink); border-radius: 999px; background: var(--paper); }
+.live-pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--good); animation: pulse 1.8s infinite; }
+.live-pill.off i { background: var(--bad); animation: none; }
+@keyframes pulse { 50% { opacity: .35; } }
+
+/* toolbar */
+.board-toolbar { flex-wrap: wrap; }
+.tb-sep { width: 1px; height: 20px; background: var(--ink-soft); opacity: .4; margin: 0 4px; }
+.board-toolbar button[aria-pressed="false"] { opacity: .55; }
+.board-toolbar button { font-size: 16px; line-height: 1; color: var(--ink); }
+
+/* SVG board */
+.board-wrap { padding: 10px; }
+.board-mount { width: fit-content; margin: 0 auto; }
+.board-svg { display: block; border-radius: 8px; background: var(--cream); border: 2px solid var(--ink); touch-action: manipulation; max-width: none; }
+.board-svg .cell { fill: var(--cream); stroke: var(--board-line); stroke-width: 1; cursor: default; }
+.board-svg .cell.alt { fill: var(--cream-2); }
+.board-svg .range-layer { pointer-events: none; }
+.board-svg .range-cell { fill: color-mix(in srgb, var(--accent-2) 38%, transparent); stroke: var(--accent-2); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.board-svg .fog-layer { pointer-events: none; }
+.board-svg .fog-cell { fill: color-mix(in srgb, var(--ink) 55%, transparent); }
+.board-svg .fx-layer { pointer-events: none; }
+.pickup { pointer-events: none; }
+.pickup-bob { animation: bob 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes bob { 50% { transform: translateY(-3px) scale(1.06); } }
+.pickup-heart { fill: var(--bad); stroke: var(--ink); stroke-width: 2.5; }
+
+.tank-g { cursor: pointer; transition: transform .28s cubic-bezier(.3,.7,.3,1); will-change: transform; }
+.tank-g .turret { transition: transform .22s ease; }
+.tank-g.spawn .tank-inner { animation: spawn .35s ease-out; transform-box: fill-box; transform-origin: center; }
+@keyframes spawn { from { transform: scale(.3); opacity: 0; } }
+.tank-g .t-shadow { fill: var(--ink); opacity: .18; }
+.tank-g .t-body, .tank-g .t-tread, .tank-g .t-barrel, .tank-g .t-cap { stroke: var(--ink); }
+.tank-g .t-body { stroke-width: 2.5; } .tank-g .t-tread { stroke-width: 2; } .tank-g .t-barrel { stroke-width: 2.2; } .tank-g .t-cap { stroke-width: 2.5; }
+.tank-g .t-eye { stroke: var(--ink); stroke-width: 1.5; }
+.tank-g .t-x { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; fill: none; }
+.tank-g.dead { cursor: default; opacity: .8; }
+.tank-g .own-ring { fill: none; stroke: var(--accent); stroke-width: 3; stroke-dasharray: 7 5; animation: ring-spin 6s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes ring-spin { to { transform: rotate(360deg); } }
+.tank-g .pip { fill: var(--bad); stroke: var(--ink); stroke-width: 6; paint-order: stroke; }
+.tank-g .pip-n { font: 700 9px 'Space Grotesk', sans-serif; fill: var(--ink); }
+.tank-g .team-dot { stroke: var(--ink); stroke-width: 2; }
+.tank-g .name-tag rect { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; opacity: .92; }
+.tank-g .name-tag text { font: 700 8px 'Space Grotesk', sans-serif; fill: var(--ink); }
+.board-svg.no-names .name-tag { display: none; }
+.tank-g.shake .tank-inner { animation: shake .35s; transform-box: fill-box; transform-origin: center; }
+@keyframes shake { 20% { transform: translate(-3px, 1px) } 40% { transform: translate(3px, -1px) } 60% { transform: translate(-2px, 0) } 80% { transform: translate(2px, 0) } }
+
+.tracer { stroke: var(--accent-2); stroke-width: 5; stroke-linecap: round; animation: tracer .25s ease-out forwards; }
+@keyframes tracer { from { opacity: 1; stroke-width: 7; } to { opacity: 0; stroke-width: 1; } }
+.muzzle { fill: var(--accent-2); animation: fade-grow .25s ease-out forwards; transform-box: fill-box; transform-origin: center; }
+.burst { fill: var(--accent); stroke: var(--ink); stroke-width: 2; animation: fade-grow .4s ease-out forwards; transform-box: fill-box; transform-origin: center; }
+@keyframes fade-grow { from { opacity: 1; transform: scale(.4); } to { opacity: 0; transform: scale(2.2); } }
+.spark { fill: var(--accent-2); animation: spark .5s ease-out forwards; }
+@keyframes spark { to { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
+.ring { fill: none; stroke: var(--bad); stroke-width: 4; animation: ring .7s ease-out forwards; transform-box: fill-box; transform-origin: center; }
+@keyframes ring { from { opacity: 1; transform: scale(.3); } to { opacity: 0; transform: scale(4); } }
+.floater { font: 700 18px 'Space Grotesk', sans-serif; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; animation: floater 1s ease-out forwards; }
+.floater.good { fill: var(--good); } .floater.bad { fill: var(--bad); }
+@keyframes floater { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-26px); } }
+
+/* misc game UI */
+.dot.sm { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: 6px; }
+.card.inset { background: var(--cream-2); box-shadow: none; padding: 12px; margin-bottom: 8px; }
+.amt { width: 54px; border: 2px solid var(--ink); border-radius: 6px; padding: 4px; font-size: 14px; background: var(--paper); color: var(--ink); }
+.kbd-hint { margin: 2px 0 6px; text-align: center; }
+@media (hover: none) { .kbd-hint { display: none; } }
+.chat-feed, .log-feed { overscroll-behavior: contain; }
+.chat-feed { min-height: 60px; }
+.game-layout .col-main, .game-layout .col-side { min-width: 0; }
+.col-side > div > .card:first-child { margin-top: 0; }
+@media (min-width: 861px) { .col-side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; padding: 0 4px 8px 0; } }
+.victory-banner { animation: spawn .5s ease-out; }
+
+@media (max-width: 860px) {
+  /* phones: board first, then your stats/actions/chat, battle log last */
+  .game-layout .col-main, .game-layout .col-side { display: contents; }
+  .game-layout #statsMount, .game-layout #actionsMount, .game-layout #targetMount, .game-layout #chatMount, .game-layout #hostMount { order: 3; }
+  .game-layout .log-card { order: 9; margin-top: 16px; }
+}
+@media (max-width: 640px) {
+  #app { padding: 12px 10px 90px; }
+  .theme-toggle-btn { bottom: 12px; right: 12px; width: 40px; height: 40px; }
+  .dpad { grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 48px); }
+  .board-toolbar button { width: 36px; height: 36px; }
+  .action-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}

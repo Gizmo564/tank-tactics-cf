@@ -323,6 +323,8 @@ export function getGameState(db, requestingUserId) {
   return {
     id: db.meta.id, name: db.meta.name, code: db.meta.code, status: db.meta.status,
     isHost, isPlayer: !!me, me: me ? { id: me.id, isDead: me.isDead } : null,
+    groups: me ? (db.groups || []).filter(g => g.memberIds.includes(me.id)).map(g => ({ id: g.id, name: g.name,
+      members: g.memberIds.map(id => byId(db, id)).filter(Boolean).map(p => ({ id: p.id, callsign: p.callsign, colorHex: p.colorHex })) })) : [],
     players, heartPickups: db.heartPickups.filter(h => !h.collected),
     recentLog: visibleLog.slice(-40), logVisible, voteCount,
     nextAPGrant: db.meta.nextAPGrant || null, winner: db.meta.winner || null, fogActive, fogHidCount,
