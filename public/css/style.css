@@ -758,3 +758,12 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 
 /* Desktop game: the bar ends where the side panels end (they leave 8px of room for their scrollbar). */
 @media (min-width: 861px) { html.in-game .topbar { margin-right: 8px; } }
+
+/* Join code box: same chunky input look and accent focus as every other text box */
+.join-code-row input {
+  border: 3px solid var(--ink); border-radius: 10px; background: var(--paper); color: var(--ink);
+  font: 700 16px 'Space Grotesk', sans-serif; padding: 9px 12px; min-width: 0;
+  transition: box-shadow .1s ease, border-color .1s ease;
+}
+.join-code-row input::placeholder { color: var(--ink-soft); opacity: .7; font-weight: 600; }
+.join-code-row input:focus { outline: none; border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
