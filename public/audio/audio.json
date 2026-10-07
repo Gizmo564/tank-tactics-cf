@@ -1,4 +1,15 @@
 {
-  "music": [],
-  "sfx": {}
+  "music": [
+    "track1.mp3"
+  ],
+  "sfx": {
+    "move": "move.mp3",
+    "shoot": "shoot.mp3",
+    "hit": "hit.mp3",
+    "kill": "kill.mp3",
+    "heal": "heal.mp3",
+    "heart": "heart.mp3",
+    "victory": "victory.mp3",
+    "loss": "loss.mp3"
+  }
 }

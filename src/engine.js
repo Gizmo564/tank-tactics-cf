@@ -336,7 +336,10 @@ export function getGameState(db, requestingUserId) {
       chatBroadcastEnabled: cfg.chatBroadcastEnabled !== false, chatWhisperEnabled: cfg.chatWhisperEnabled !== false,
       actionLogEnabled: cfg.actionLogEnabled !== false, actionLogWindow: cfg.actionLogWindow === '24h' ? '24h' : 'full',
       fogOfWarEnabled: !!cfg.fogOfWarEnabled, teamsEnabled: !!cfg.teamsEnabled, teamCount: cfg.teamCount || 2,
-      winCondition: cfg.winCondition || 'lastStanding', killTargetCount: cfg.killTargetCount || 5
+      winCondition: cfg.winCondition || 'lastStanding', killTargetCount: cfg.killTargetCount || 5,
+      apPerDay: cfg.apPerDay, apIntervalHours: cfg.apIntervalHours, apSchedule: cfg.apSchedule,
+      transferAPOnKill: cfg.transferAPOnKill !== false, shootDamage: cfg.shootDamage || 1, hauntingEnabled: !!cfg.hauntingEnabled,
+      heartSpawnEnabled: !!cfg.heartSpawnEnabled
     }
   };
 }

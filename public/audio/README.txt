@@ -15,7 +15,8 @@ YOUR MUSIC AND SOUND EFFECTS GO IN THIS FOLDER
        "kill": "kill.mp3",
        "heal": "heal.mp3",
        "heart": "heart-pickup.mp3",
-       "victory": "victory.mp3"
+       "victory": "victory.mp3",
+       "loss": "loss.mp3"
      }
    }
 
@@ -27,7 +28,8 @@ YOUR MUSIC AND SOUND EFFECTS GO IN THIS FOLDER
        kill    - a tank is destroyed
        heal    - a tank repairs
        heart   - a heart pickup is collected
-       victory - the game ends
+       victory - the game ends and you won (or you are spectating)
+       loss    - the game ends and you lost
      Any name you leave out keeps its built-in synthesized sound.
 
 3. Deploy:  npx wrangler deploy    (then hard-refresh the page once)

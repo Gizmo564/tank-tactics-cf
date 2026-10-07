@@ -608,3 +608,16 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 .switch.on { background: var(--good); }
 .switch.on i { transform: translateX(20px); background: #fff; }
 @media (max-width: 640px) { .theme-panel { right: 12px; bottom: 60px; width: min(270px, calc(100vw - 24px)); } }
+
+/* ===== How-to-play popup ===== */
+.modal.howto { max-width: 520px; max-height: 88vh; overflow-y: auto; padding: 22px; animation: spawn .25s ease-out; }
+.howto-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.howto-head h2 { font-size: 24px; }
+.howto-list { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.howto-list li { display: flex; gap: 12px; align-items: flex-start; }
+.howto-ic { flex: none; width: 34px; height: 34px; border-radius: 10px; border: 2px solid var(--ink); background: var(--accent-2); color: var(--ink-on-light); display: flex; align-items: center; justify-content: center; }
+.howto-t { font: 700 14px 'Space Grotesk', sans-serif; }
+.howto-list p { margin: 2px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
+.howto-list b { color: var(--ink); }
+.howto-actions { display: flex; justify-content: flex-end; margin-top: 14px; position: sticky; bottom: -22px; background: var(--paper); padding: 8px 0 0; }
+@media (max-width: 640px) { .modal.howto { padding: 16px; } .howto-actions .btn { width: 100%; justify-content: center; } }

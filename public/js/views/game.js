@@ -6,6 +6,7 @@ import { $app, S, api, esc, toast, setView, registerView, logLine, heartRow, cou
 import { ICONS } from '../icons.js';
 import { Board } from '../board.js';
 import { play } from '../sfx.js';
+import { showHowTo, maybeShowHowTo } from '../howto.js';
 
 const ZOOM_MIN = 0.15, ZOOM_MAX = 2.5, ZOOM_STEP = 0.15;
 const DIRS = { '0,-1': 'up', '0,1': 'down', '-1,0': 'left', '1,0': 'right', '-1,-1': 'upleft', '1,-1': 'upright', '-1,1': 'downleft', '1,1': 'downright' };
@@ -15,6 +16,14 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* ignore 
 
 let G = null; // per-visit state, rebuilt on every render()
 
+// Game just ended: spectators get the victory jingle; players hear victory or loss. A draw is silent.
+function endSound(st) {
+  const m = me(), w = st.winner || '';
+  if (!m) return play('victory');
+  if (/draw/i.test(w)) return;
+  const won = st.config.winCondition === 'killTarget' ? w.startsWith(m.callsign + ' (') : !m.isDead;
+  play(won ? 'victory' : 'loss');
+}
 function me() { return G.st && G.st.players.find(p => p.isOwn); }
 const gid = () => S.currentGameId;
 
@@ -75,6 +84,7 @@ function buildShell() {
       <div class="col-main">
         <div id="fogHint"></div>
         <div class="board-toolbar">
+          <button type="button" id="howBtn" title="How to play" aria-label="How to play">${ICONS.help(15)}</button>
           <button type="button" id="namesBtn" title="Toggle names" aria-label="Toggle names" aria-pressed="${G.names}">${ICONS.tag(14)}</button>
           <span class="tb-sep"></span>
           <button type="button" id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">−</button>
@@ -100,6 +110,7 @@ function buildShell() {
   document.getElementById('namesBtn').onclick = e => {
     G.names = !G.names; lsSet('tt_names', G.names ? '1' : '0'); G.board.setNames(G.names); e.currentTarget.setAttribute('aria-pressed', G.names);
   };
+  document.getElementById('howBtn').onclick = () => G.st && showHowTo(G.st);
   document.getElementById('zoomOutBtn').onclick = () => setZoom(G.zoom - ZOOM_STEP);
   document.getElementById('zoomInBtn').onclick = () => setZoom(G.zoom + ZOOM_STEP);
   document.getElementById('zoomFitBtn').onclick = fitZoom;
@@ -161,7 +172,7 @@ function applyState(st, v) {
   if (v != null) { if (v < G.v) return; G.v = v; }
   const first = !G.st, wasActive = G.st && G.st.status === 'active';
   G.st = st;
-  if (wasActive && st.status === 'ended') play('victory');
+  if (wasActive && st.status === 'ended') endSound(st);
   const m = me();
   document.getElementById('gName').textContent = st.name;
   document.getElementById('gSub').textContent = st.status === 'active' ? (m ? 'Battle in progress' : 'Spectating') : 'Game over';
@@ -172,7 +183,7 @@ function applyState(st, v) {
     ? `<p class="hint mb-8">${ICONS.eye(13)} Fog of war is on — you only see tanks within your range (${st.fogHidCount} hidden right now).</p>` : '';
   if (G.mode && (!m || m.isDead || st.status !== 'active')) G.mode = null;
   G.board.update(st, { actionMode: G.mode });
-  if (first) restoreZoom();
+  if (first) { restoreZoom(); maybeShowHowTo(st); }
   renderStats(); renderActions(); renderTarget(); renderLog(); renderChatShell(); renderHost();
 }
 // A zoom the player chose is remembered per board size and never overridden; only a first visit auto-fits.
