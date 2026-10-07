@@ -8,8 +8,7 @@ function field(f) {
   const val = wizard.config[f.key];
   if (f.type === 'bool') return `<div class="field-checkbox"><input type="checkbox" id="f_${f.key}" ${val ? 'checked' : ''}/><label for="f_${f.key}">${esc(f.label)}</label></div>`;
   if (f.type === 'enum') return `<div class="field"><label for="f_${f.key}">${esc(f.label)}</label><select id="f_${f.key}">${f.options.map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
-  const hint = f.key === 'apPerDay' ? '<p class="hint" id="apHint" hidden></p>' : '';
-  return `<div class="field"><label for="f_${f.key}">${esc(f.label)}</label><input type="number" id="f_${f.key}" step="${f.type === 'float' ? '0.25' : '1'}" min="${f.min}" max="${f.max}" value="${val}"/>${hint}</div>`;
+  return `<div class="field"><label for="f_${f.key}">${esc(f.label)}</label><input type="number" id="f_${f.key}" step="${f.type === 'float' ? '0.25' : '1'}" min="${f.min}" max="${f.max}" value="${val}"/></div>`;
 }
 
 async function render() {
@@ -40,7 +39,7 @@ async function render() {
       <div class="field-group-title">Choose a preset</div>
       <div class="preset-grid">${S.presets.map(p => `
         <button type="button" class="preset-card ${p.id === wizard.presetId ? 'selected' : ''}" data-preset="${p.id}"><div class="p-title">${esc(p.label)}</div><div class="p-blurb">${esc(p.blurb)}</div></button>`).join('')}</div>
-      ${Object.keys(byGroup).map(g => `<div class="field-group-title">${GROUPS[g] || g}</div><div class="field-grid">${byGroup[g].map(field).join('')}</div>`).join('')}
+      ${Object.keys(byGroup).map(g => `<div class="field-group-title">${GROUPS[g] || g}</div><div class="field-grid">${byGroup[g].map(field).join('')}</div>${g === 'ap' ? '<p class="hint" id="apHint" hidden></p>' : ''}`).join('')}
       <button class="btn primary block mt-16" id="wizardCreate">${ICONS.plus(16)} Create Game</button>
     </div>`;
 
