@@ -7,8 +7,8 @@ const LS = {
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
 };
 const num = (v, d) => { const n = parseFloat(v); return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : d; };
-let sfxOn = LS.get('tt_sound', '0') === '1', sfxVol = num(LS.get('tt_sfx_vol'), 0.8);
-let musicOn = LS.get('tt_music', '0') === '1', musicVol = num(LS.get('tt_music_vol'), 0.5);
+let sfxOn = LS.get('tt_sound', '1') === '1', sfxVol = num(LS.get('tt_sfx_vol'), 0.8);
+let musicOn = LS.get('tt_music', '1') === '1', musicVol = num(LS.get('tt_music_vol'), 0.5);
 let ctx = null, master = null, tracks = [], idx = 0, el = null, cfgPromise = null;
 const raw = {}, buf = {}, listeners = new Set();
 const apath = f => '/audio/' + String(f).split('/').filter(p => p && p !== '..').map(encodeURIComponent).join('/');

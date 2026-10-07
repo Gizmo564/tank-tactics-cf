@@ -582,7 +582,6 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
   html.in-game .col-side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 8px 14px 2px; scrollbar-width: thin; }
 }
 @media (max-width: 860px) { .board-wrap { max-height: 62vh; } }
-@media (min-width: 861px) { html.in-game .theme-toggle-btn { right: auto; left: 18px; } html.in-game .theme-panel { right: auto; left: 18px; transform-origin: bottom left; } }
 
 /* ===== Settings panel (gear button) — unrolls upward from the button ===== */
 .theme-toggle-btn { transition: transform .2s ease, background .2s; }
@@ -621,3 +620,24 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 .howto-list b { color: var(--ink); }
 .howto-actions { display: flex; justify-content: flex-end; margin-top: 14px; position: sticky; bottom: -22px; background: var(--paper); padding: 8px 0 0; }
 @media (max-width: 640px) { .modal.howto { padding: 16px; } .howto-actions .btn { width: 100%; justify-content: center; } }
+
+/* ===== Settings button lives in the top bar (top-right, scrolls away with the page); panel drops down from it ===== */
+.topbar { padding-right: 54px; }
+.theme-toggle-btn { position: absolute; top: 20px; right: 16px; bottom: auto; width: 40px; height: 40px; }
+.theme-panel { position: absolute; top: 66px; right: 16px; bottom: auto; transform-origin: top right; }
+@media (min-width: 861px) { html.in-game .theme-toggle-btn { top: 14px; } html.in-game .theme-panel { top: 60px; } }
+@media (max-width: 640px) {
+  .theme-toggle-btn { top: 12px; right: 10px; width: 38px; height: 38px; }
+  .theme-panel { top: 56px; right: 10px; bottom: auto; }
+  .topbar { padding-right: 48px; }
+}
+
+/* ---------- Move pad: chunky toy-block keys ---------- */
+.dpad { gap: 6px; padding: 10px; background: var(--cream-2); border: 2px solid var(--ink); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.dpad button { background: var(--paper); color: var(--ink); border: 2px solid var(--ink); border-radius: 10px; box-shadow: var(--shadow-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform .08s, box-shadow .08s, background .12s; }
+.dpad button:hover:not(:disabled) { background: var(--accent-2); color: var(--ink-on-light); transform: translate(-1px, -1px); }
+.dpad button:active:not(:disabled) { background: var(--accent); color: #fff; transform: translate(2px, 2px); box-shadow: none; }
+.dpad button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.dpad .center { background: var(--accent); color: #fff; border: 2px solid var(--ink); border-radius: 10px; box-shadow: inset 0 -3px 0 rgba(0,0,0,.18); }
+.dpad button:disabled { opacity: .4; box-shadow: none; }
+.dpad button:disabled:hover { background: var(--paper); }
