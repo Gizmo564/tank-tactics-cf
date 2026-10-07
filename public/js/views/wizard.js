@@ -8,7 +8,8 @@ function field(f) {
   const val = wizard.config[f.key];
   if (f.type === 'bool') return `<div class="field-checkbox"><input type="checkbox" id="f_${f.key}" ${val ? 'checked' : ''}/><label for="f_${f.key}">${esc(f.label)}</label></div>`;
   if (f.type === 'enum') return `<div class="field"><label for="f_${f.key}">${esc(f.label)}</label><select id="f_${f.key}">${f.options.map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
-  return `<div class="field"><label for="f_${f.key}">${esc(f.label)}</label><input type="number" id="f_${f.key}" step="${f.type === 'float' ? '0.25' : '1'}" min="${f.min}" max="${f.max}" value="${val}"/></div>`;
+  const hint = f.key === 'apPerDay' ? '<p class="hint" id="apHint" hidden></p>' : '';
+  return `<div class="field"><label for="f_${f.key}">${esc(f.label)}</label><input type="number" id="f_${f.key}" step="${f.type === 'float' ? '0.25' : '1'}" min="${f.min}" max="${f.max}" value="${val}"/>${hint}</div>`;
 }
 
 async function render() {
@@ -54,6 +55,15 @@ async function render() {
     const el = document.getElementById('f_' + f.key); if (!el) return;
     el.addEventListener('change', () => { wizard.config[f.key] = f.type === 'bool' ? el.checked : el.value; });
   });
+  // More tanks share the same AP pool, so gently suggest a bigger grant.
+  const apHint = () => {
+    const h = document.getElementById('apHint'); if (!h) return;
+    const tanks = parseInt(wizard.config.tanksPerPlayer) || 1, ap = parseInt(wizard.config.apPerDay) || 1;
+    h.hidden = !(tanks > 1 && ap < tanks * 2);
+    h.textContent = `With ${tanks} tanks per player sharing one AP pool, ${ap} AP per grant may feel slow — consider raising it (around ${tanks * 2} or more).`;
+  };
+  ['tanksPerPlayer', 'apPerDay'].forEach(k => { const el = document.getElementById('f_' + k); if (el) el.addEventListener('input', () => { wizard.config[k] = el.value; apHint(); }); });
+  apHint();
   document.getElementById('wizardVisibility').addEventListener('change', e => { wizard.visibility = e.target.value; });
   document.getElementById('wizardCreate').onclick = async e => {
     e.target.disabled = true;

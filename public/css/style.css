@@ -682,3 +682,22 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
   filter: grayscale(1); box-shadow: none; transform: translate(3px, 3px); cursor: not-allowed;
 }
 .btn:disabled:hover, .dpad button:disabled:hover { background: var(--cream-2); transform: translate(3px, 3px); box-shadow: none; }
+
+/* ---------- Multi-tank: selection, wrecks, tank list ---------- */
+.tank-g { transition: transform .28s cubic-bezier(.3,.7,.3,1), opacity .2s ease; }
+.tank-g.faded { opacity: .55; }
+.tank-g.dead { opacity: 1; }
+.tank-g .own-ring.sel { stroke-width: 4.5; stroke-dasharray: none; }
+.tank-g.selected .tank-inner { filter: drop-shadow(0 0 3px var(--accent)); }
+.sel-hint { font-size: 12px; font-weight: 700; color: var(--accent-text); margin: 2px 0 0; text-align: center; }
+.sel-hint[hidden] { display: none; }
+.tank-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.tank-row { display: grid; grid-template-columns: 30px 1fr auto auto; align-items: center; gap: 8px; width: 100%; text-align: left;
+  background: var(--paper); color: var(--ink); border: 2px solid var(--ink); border-radius: 10px; padding: 4px 10px 4px 6px; font: 600 13px 'Space Grotesk', sans-serif; cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink); transition: transform .08s ease, box-shadow .08s ease, background .12s; }
+.tank-row:hover:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+.tank-row.sel { background: var(--accent-2); color: var(--ink-on-light); transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+.tank-row:disabled { cursor: not-allowed; background: var(--cream-2); color: var(--ink-soft); border-color: var(--ink-soft); box-shadow: none; transform: translate(3px, 3px); }
+.tank-row .tr-ic { display: flex; } .tank-row .tr-r { display: flex; align-items: center; gap: 3px; color: var(--ink-soft); font-size: 12px; }
+.tank-row.sel .tr-r { color: var(--ink-on-light); }
+.mb-8 { margin-bottom: 8px; }

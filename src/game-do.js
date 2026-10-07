@@ -30,7 +30,7 @@ export class GameDO extends DurableObject {
   load() {
     if (this.db === undefined) {
       const r = this.sql.exec("SELECT v FROM kv WHERE k='db'").toArray()[0];
-      this.db = r ? JSON.parse(r.v) : null;
+      this.db = r ? E.ensureTanks(JSON.parse(r.v)) : null;
     }
     return this.db;
   }
@@ -133,11 +133,11 @@ export class GameDO extends DurableObject {
       case 'end': return this.mutate(db, () => L.endGame(db, uid));
       case 'leave': return this.leave(db, uid);
 
-      case 'move': return this.act(db, uid, () => E.movePlayer(db, uid, a.direction));
-      case 'shoot': return this.act(db, uid, () => E.shootPlayer(db, uid, a.targetId));
-      case 'heal': return this.act(db, uid, () => E.addHeart(db, uid));
+      case 'move': return this.act(db, uid, () => E.movePlayer(db, uid, a.direction, a.tankId));
+      case 'shoot': return this.act(db, uid, () => E.shootPlayer(db, uid, a.tankId, a.targetId));
+      case 'heal': return this.act(db, uid, () => E.addHeart(db, uid, a.tankId));
       case 'upgrade': return this.act(db, uid, () => E.upgradeRange(db, uid));
-      case 'gift': return this.act(db, uid, () => E.sendGift(db, uid, a.targetId, a.type, a.amount));
+      case 'gift': return this.act(db, uid, () => E.sendGift(db, uid, a.tankId, a.targetId, a.type, a.amount));
       case 'vote': return this.act(db, uid, () => E.juryVote(db, uid, a.targetId));
 
       case 'groups.list': return E.myGroups(db, uid);

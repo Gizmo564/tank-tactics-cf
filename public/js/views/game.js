@@ -5,7 +5,7 @@
 import { $app, S, api, esc, toast, setView, registerView, logLine, heartRow, countdownMarkup, connectGameSocket } from '../core.js';
 import { ICONS } from '../icons.js';
 import { tankIcon } from '../tanks.js';
-import { Board } from '../board.js';
+import { Board, flatTanks } from '../board.js';
 import { play } from '../sfx.js';
 import { showHowTo, maybeShowHowTo } from '../howto.js';
 
@@ -26,11 +26,29 @@ function endSound(st) {
   play(won ? 'victory' : 'loss');
 }
 function me() { return G.st && G.st.players.find(p => p.isOwn); }
+
+// ---------- my tanks and which one is selected ----------
+const myTanks = () => { const m = me(); return m ? m.tanks : []; };
+const liveTanks = () => myTanks().filter(t => !t.isDead && t.x !== null);
+const multi = () => myTanks().length > 1;
+const tankNo = id => myTanks().findIndex(t => t.id === id) + 1;
+// The tank orders apply to: the one the player picked, or the only one left alive.
+function effSel() {
+  const live = liveTanks();
+  return (G.sel && live.find(t => t.id === G.sel)) || (live.length === 1 ? live[0] : null);
+}
+const explicitSel = () => (multi() && G.sel && liveTanks().some(t => t.id === G.sel) ? G.sel : null);
+function refreshBoard() { const t = effSel(); G.board.update(G.st, { actionMode: G.mode, selId: t ? t.id : null, explicit: !!explicitSel() }); }
+function select(id) {
+  G.sel = id;
+  if (G.mode && G.mode !== 'vote' && !effSel()) G.mode = null;
+  refreshBoard(); renderStats(); renderActions(); renderTarget();
+}
 const gid = () => S.currentGameId;
 
 async function render() {
   G = { st: null, v: -1, board: null, sock: null, poll: null, mode: null, chat: [], chatIds: new Set(), chatSince: 0,
-    sigs: {}, zoom: 1, names: lsGet('tt_names', '1') === '1', live: false,
+    sigs: {}, sel: null, zoom: 1, names: lsGet('tt_names', '1') === '1', live: false,
     groupForm: false, groupSel: new Set(), busy: false, replay: null };
   const r = await api(`/api/games/${gid()}/state`);
   if (!r.ok) { toast(r.error || 'Game not found', 'bad'); return setView('lobby'); }
@@ -133,6 +151,9 @@ function buildShell() {
   document.getElementById('boardWrap').addEventListener('wheel', e => {
     if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); setZoom(G.zoom + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
   }, { passive: false });
+  document.getElementById('statsMount').addEventListener('click', e => {
+    const b = e.target.closest('[data-sel]'); if (b) select(G.sel === b.dataset.sel ? null : b.dataset.sel);
+  });
   document.getElementById('actionsMount').addEventListener('click', onActionsClick);
   document.getElementById('targetMount').addEventListener('click', onTargetClick);
   document.getElementById('hostMount').addEventListener('click', onHostClick);
@@ -182,8 +203,9 @@ function applyState(st, v) {
     ? `<div class="card victory-banner"><div class="panel-title">${ICONS.flag(15)} Game over</div><p>${esc(st.winner)}${/draw/i.test(st.winner) ? '' : ' wins'}!</p></div>` : '';
   document.getElementById('fogHint').innerHTML = st.fogActive
     ? `<p class="hint mb-8">${ICONS.eye(13)} Fog of war is on — you only see tanks within your range (${st.fogHidCount} hidden right now).</p>` : '';
-  if (G.mode && (!m || m.isDead || st.status !== 'active')) G.mode = null;
-  G.board.update(st, { actionMode: G.mode });
+  if (G.sel && !liveTanks().some(t => t.id === G.sel)) G.sel = null;
+  if (G.mode && (!m || st.status !== 'active' || (G.mode === 'vote') !== m.isDead || (G.mode !== 'vote' && !effSel()))) G.mode = null;
+  refreshBoard();
   if (first) { restoreZoom(); maybeShowHowTo(st); }
   renderStats(); renderActions(); renderTarget(); renderLog(); renderChatShell(); renderHost();
 }
@@ -196,19 +218,27 @@ function restoreZoom() {
 
 function renderStats() {
   const st = G.st, m = me(), cfg = st.config, el = document.getElementById('statsMount');
+  const many = multi(), picked = explicitSel();
+  const tankRows = () => `<div class="tank-rows">${m.tanks.map((t, i) => `
+      <button type="button" class="tank-row${t.id === picked ? ' sel' : ''}${t.isDead ? ' dead' : ''}" data-sel="${t.id}" aria-pressed="${t.id === picked}" ${t.isDead || st.status !== 'active' ? 'disabled' : ''}>
+        <span class="tr-ic">${tankIcon(m.colorHex, 28, t.isDead)}</span><span class="tr-name">Tank ${i + 1}</span>
+        <span class="tr-h">${t.isDead ? '<span class="tag">wreck</span>' : heartRow(t.hearts)}</span>
+        <span class="tr-r" title="Range">${ICONS.radar(12)} ${t.range}</span></button>`).join('')}</div>`;
   const html = m ? `
     <div class="card">
-      <div class="panel-title">Your tank</div>
+      <div class="panel-title">${many ? 'Your tanks' : 'Your tank'}</div>
       ${m.team ? `<div class="stat-row"><span class="label">Team</span><span class="val">Team ${m.team}</span></div>` : ''}
-      <div class="stat-row"><span class="label">Hearts</span><span class="val">${heartRow(m.hearts)}</span></div>
-      <div class="stat-row"><span class="label">${ICONS.bolt(13)} Action Points</span><span class="val">${m.ap}</span></div>
-      <div class="stat-row"><span class="label">${ICONS.radar(13)} Range</span><span class="val">${m.range}</span></div>
+      ${many ? '' : `<div class="stat-row"><span class="label">Hearts</span><span class="val">${heartRow(m.tanks[0].hearts)}</span></div>`}
+      <div class="stat-row"><span class="label">${ICONS.bolt(13)} Action Points${many ? ' (shared)' : ''}</span><span class="val">${m.ap}</span></div>
+      ${many ? '' : `<div class="stat-row"><span class="label">${ICONS.radar(13)} Range</span><span class="val">${m.tanks[0].range}</span></div>`}
       ${cfg.winCondition === 'killTarget' ? `<div class="stat-row"><span class="label">${ICONS.target(13)} Kills</span><span class="val">${m.kills || 0} / ${cfg.killTargetCount}</span></div>` : ''}
       ${st.status === 'active' ? `<div class="stat-row"><span class="label">${ICONS.clock(13)} Next AP grant</span><span class="val">${countdownMarkup(st.nextAPGrant)}</span></div>` : ''}
+      ${many ? tankRows() : ''}
+      ${many && st.status === 'active' && !m.isDead ? `<p class="hint">Click a tank on the map or in this list to give it orders (keys 1–${m.tanks.length}). Click an empty tile out of range to deselect.</p>` : ''}
       ${m.isDead && st.status === 'active' ? `<p class="hint">You're out — but as jury you can still vote each day, or wait to be revived.</p>` : ''}
     </div>`
     : `<div class="card"><p class="small-muted">You're spectating this game.</p>
-      <div class="stat-row"><span class="label">Tanks alive</span><span class="val">${st.players.filter(p => !p.isDead).length} / ${st.players.length}</span></div>
+      <div class="stat-row"><span class="label">Players alive</span><span class="val">${st.players.filter(p => !p.isDead).length} / ${st.players.length}</span></div>
       ${st.status === 'active' ? `<div class="stat-row"><span class="label">${ICONS.clock(13)} Next AP grant</span><span class="val">${countdownMarkup(st.nextAPGrant)}</span></div>` : ''}</div>`;
   const key = html.replace(/(class="countdown"[^>]*>)[^<]*/g, '$1'); // ticking text must not force a redraw
   if (key !== G.sigs.stats) { el.innerHTML = html; G.sigs.stats = key; }
@@ -217,34 +247,43 @@ function renderStats() {
 function renderActions() {
   const st = G.st, m = me(), cfg = st.config, el = document.getElementById('actionsMount');
   if (!m || st.status !== 'active') { el.innerHTML = ''; G.sigs.actions = ''; return; }
-  const sig = [m.isDead, cfg.moveCost, cfg.shootCost, cfg.addHeartCost, cfg.upgradeRangeCost, cfg.giftingEnabled, cfg.juryEnabled].join('|');
+  const sig = [m.isDead, cfg.moveCost, cfg.shootCost, cfg.addHeartCost, cfg.upgradeRangeCost, cfg.giftingEnabled, cfg.juryEnabled, m.tanks.length].join('|');
   if (sig !== G.sigs.actions) {
     G.sigs.actions = sig;
     el.innerHTML = m.isDead ? `
       <div class="card mt-16"><div class="panel-title">Jury vote</div>
-        <button class="btn action-mode block icon-btn" data-mode="vote">${ICONS.scale(16)} Vote to haunt a tank</button></div>`
+        <button class="btn action-mode block icon-btn" data-mode="vote">${ICONS.scale(16)} Vote to haunt a player</button></div>`
     : `
       <div class="card mt-16">
         <div class="panel-title">Move (${cfg.moveCost} AP)</div>
+        <p class="sel-hint" id="selHint" hidden></p>
         <div class="dpad">
           <button data-dir="upleft" aria-label="Up-left">${ICONS.chevron('upleft', 16)}</button><button data-dir="up" aria-label="Up">${ICONS.chevron('up', 16)}</button><button data-dir="upright" aria-label="Up-right">${ICONS.chevron('upright', 16)}</button>
           <button data-dir="left" aria-label="Left">${ICONS.chevron('left', 16)}</button><div class="center">${tankIcon(m.colorHex, 32)}</div><button data-dir="right" aria-label="Right">${ICONS.chevron('right', 16)}</button>
           <button data-dir="downleft" aria-label="Down-left">${ICONS.chevron('downleft', 16)}</button><button data-dir="down" aria-label="Down">${ICONS.chevron('down', 16)}</button><button data-dir="downright" aria-label="Down-right">${ICONS.chevron('downright', 16)}</button>
         </div>
-        <p class="hint kbd-hint">Tip: click a tile next to you, or use arrow keys / WASD (Q E Z C for diagonals).</p>
+        <p class="hint kbd-hint">Tip: click a tile next to ${m.tanks.length > 1 ? 'the selected tank' : 'you'}, or use arrow keys / WASD (Q E Z C for diagonals).</p>
         <div class="action-grid">
-          <button class="btn action-mode sm icon-btn" data-mode="shoot" data-cost="${cfg.shootCost}">${ICONS.target(14)} Shoot (${cfg.shootCost})</button>
-          <button class="btn sm icon-btn" data-act="heal" data-cost="${cfg.addHeartCost}">${ICONS.wrench(14)} Repair (${cfg.addHeartCost})</button>
-          <button class="btn sm icon-btn" data-act="upgrade" data-cost="${cfg.upgradeRangeCost}">${ICONS.radar(14)} +Range (${cfg.upgradeRangeCost})</button>
-          ${cfg.giftingEnabled ? `<button class="btn action-mode sm icon-btn" data-mode="gift-hearts">${ICONS.heart(14)} Gift heart</button>
-          <button class="btn action-mode sm icon-btn" data-mode="gift-ap">${ICONS.bolt(14)} Gift AP</button>` : ''}
+          <button class="btn action-mode sm icon-btn" data-mode="shoot" data-needs-tank data-cost="${cfg.shootCost}">${ICONS.target(14)} Shoot (${cfg.shootCost})</button>
+          <button class="btn sm icon-btn" data-act="heal" data-needs-tank data-cost="${cfg.addHeartCost}">${ICONS.wrench(14)} Repair (${cfg.addHeartCost})</button>
+          <button class="btn sm icon-btn" data-act="upgrade" data-cost="${cfg.upgradeRangeCost}"${m.tanks.length > 1 ? ' title="Raises the range of all your tanks"' : ''}>${ICONS.radar(14)} +Range (${cfg.upgradeRangeCost})</button>
+          ${cfg.giftingEnabled ? `<button class="btn action-mode sm icon-btn" data-mode="gift-hearts" data-needs-tank>${ICONS.heart(14)} Gift heart</button>
+          <button class="btn action-mode sm icon-btn" data-mode="gift-ap" data-needs-tank>${ICONS.bolt(14)} Gift AP</button>` : ''}
         </div>
       </div>`;
   }
   // in-place updates only: affordability + active mode (no re-render = no lost clicks)
-  el.querySelectorAll('[data-dir]').forEach(b => { b.disabled = m.ap < cfg.moveCost; });
-  el.querySelectorAll('[data-cost]').forEach(b => { b.disabled = m.ap < +b.dataset.cost; });
-  el.querySelectorAll('[data-mode]').forEach(b => { b.classList.toggle('active', b.dataset.mode === G.mode); b.setAttribute('aria-pressed', b.dataset.mode === G.mode); });
+  const t = effSel();
+  const hint = el.querySelector('#selHint');
+  if (hint) { hint.hidden = !multi(); hint.textContent = !multi() ? '' : t ? `Tank ${tankNo(t.id)} selected` : 'Select one of your tanks first'; }
+  el.querySelectorAll('[data-dir]').forEach(b => { b.disabled = !t || m.ap < cfg.moveCost; });
+  el.querySelectorAll('[data-cost]').forEach(b => {
+    b.disabled = m.ap < +b.dataset.cost || (b.hasAttribute('data-needs-tank') && !t) || (b.dataset.act === 'heal' && !!t && t.hearts >= cfg.maxHearts);
+  });
+  el.querySelectorAll('[data-mode]').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === G.mode); b.setAttribute('aria-pressed', b.dataset.mode === G.mode);
+    if (b.hasAttribute('data-needs-tank') && !b.hasAttribute('data-cost')) b.disabled = !t;
+  });
 }
 
 function renderLog() {
@@ -259,30 +298,34 @@ function renderLog() {
 // ---------- targeting ----------
 function candidates() {
   const st = G.st, m = me(); if (!m || !G.mode) return [];
-  let c = st.players.filter(p => p.id !== m.id);
-  if (G.mode === 'shoot' || G.mode === 'gift-ap' || G.mode === 'vote') c = c.filter(p => !p.isDead);
-  if (st.fogActive && (G.mode === 'shoot' || G.mode.startsWith('gift'))) c = c.filter(p => p.x !== null);
-  return c;
+  if (G.mode === 'vote') return st.players.filter(p => !p.isOwn && !p.isDead).map(p => ({ id: p.id, name: p.callsign, colorHex: p.colorHex, team: p.team, isDead: false }));
+  const sel = effSel();
+  let c = flatTanks(st).filter(u => u.x !== null && (!sel || u.id !== sel.id));   // fog-hidden tanks have no position
+  if (G.mode === 'shoot' || G.mode === 'gift-ap') c = c.filter(u => !u.isDead && !u.isOwn);   // hearts can go anywhere, even to a wreck
+  return c.map(u => ({ id: u.id, name: u.callsign, colorHex: u.colorHex, team: u.team, isDead: u.isDead, hearts: u.hearts, own: u.isOwn, no: u.isOwn ? tankNo(u.id) : 0 }));
 }
 function renderTarget() {
   const el = document.getElementById('targetMount'), m = me();
   if (!G.mode || !m) { el.innerHTML = ''; G.sigs.target = ''; return; }
   const c = candidates();
-  const sig = G.mode + '|' + c.map(p => p.id + p.isDead + p.team).join(',');
+  const sel = effSel();
+  const sig = G.mode + '|' + (sel ? sel.id : '') + '|' + c.map(p => p.id + p.isDead + p.team + p.hearts).join(',');
   if (sig === G.sigs.target) return;           // unchanged → keep the DOM (and any typed gift amounts)
   const amts = {}; el.querySelectorAll('input[data-amt]').forEach(i => { amts[i.dataset.amt] = i.value; });
   G.sigs.target = sig;
-  const label = { shoot: 'Choose a target to shoot', 'gift-hearts': 'Choose who receives hearts', 'gift-ap': 'Choose who receives AP', vote: 'Choose who to haunt today' }[G.mode];
+  const label = { shoot: 'Choose a target to shoot', 'gift-hearts': multi() || G.st.config.tanksPerPlayer > 1 ? 'Choose a tank to receive hearts' : 'Choose who receives hearts', 'gift-ap': 'Choose who receives AP', vote: 'Choose who to haunt today' }[G.mode];
   const gift = G.mode.startsWith('gift');
-  el.innerHTML = `<div class="card mt-16"><div class="panel-title">${label}</div><div class="target-list">
-    ${c.length ? c.map(p => `<div class="target-row"><span><span class="dot sm" style="background:${p.colorHex}"></span>${esc(p.callsign)}${p.team ? ` <span class="tag">Team ${p.team}</span>` : ''}${p.isDead ? ' <span class="tag">down</span>' : ''}</span>
-      ${gift ? `<span class="gap-8"><input type="number" min="1" value="${esc(amts[p.id] || '1')}" class="amt" data-amt="${p.id}" aria-label="Amount for ${esc(p.callsign)}"/><button class="btn sm" data-target="${p.id}">Send</button></span>`
+  el.innerHTML = `<div class="card mt-16"><div class="panel-title">${label}</div>
+    ${G.mode === 'gift-hearts' && G.st.config.tanksPerPlayer > 1 && G.st.config.tankGiftCost > 0 ? `<p class="hint mb-8">Sending hearts to one of your own tanks costs ${G.st.config.tankGiftCost} AP. A tank can give away its last heart and become a wreck; a gifted heart revives a wreck.</p>` : ''}
+    <div class="target-list">
+    ${c.length ? c.map(p => `<div class="target-row"><span><span class="dot sm" style="background:${p.colorHex}"></span>${esc(p.name)}${p.own ? ` <span class="tag">your tank ${p.no}</span>` : ''}${p.team ? ` <span class="tag">Team ${p.team}</span>` : ''}${p.isDead ? ' <span class="tag">wreck</span>' : G.st.config.tanksPerPlayer > 1 && p.hearts != null ? ` <span class="small-muted">${p.hearts}♥</span>` : ''}</span>
+      ${gift ? `<span class="gap-8"><input type="number" min="1" value="${esc(amts[p.id] || '1')}" class="amt" data-amt="${p.id}" aria-label="Amount for ${esc(p.name)}"/><button class="btn sm" data-target="${p.id}">Send</button></span>`
         : `<button class="btn sm" data-target="${p.id}">${G.mode === 'vote' ? 'Vote' : 'Fire'}</button>`}</div>`).join('') : '<p class="small-muted">No valid targets right now.</p>'}
     </div></div>`;
 }
 function setMode(mode) {
   G.mode = G.mode === mode ? null : mode;
-  G.board.update(G.st, { actionMode: G.mode });
+  refreshBoard();
   renderActions(); renderTarget();
 }
 function onActionsClick(e) {
@@ -291,23 +334,42 @@ function onActionsClick(e) {
   if (act) return doSimple(act.dataset.act);
   if (mode) return setMode(mode.dataset.mode);
 }
-function onTankTargetable(id) { return G.mode && candidates().some(p => p.id === id); }
-function onTank(id) { if (G.mode && onTankTargetable(id)) targeted(id); }
+function onTarget(id) { return candidates().some(c => c.id === id); }
+function onTank(id) {
+  const m = me();
+  if (G.mode === 'vote') {                      // votes are per player, so a tank stands for its owner
+    const owner = G.st.players.find(p => p.tanks.some(t => t.id === id));
+    if (owner && onTarget(owner.id)) targeted(owner.id);
+    return;
+  }
+  if (G.mode && onTarget(id)) return targeted(id);
+  const own = m && m.tanks.find(t => t.id === id);
+  if (own && !own.isDead && G.st.status === 'active' && multi()) select(G.sel === id ? null : id);
+}
 function onTargetClick(e) { const b = e.target.closest('[data-target]'); if (b) targeted(b.dataset.target); }
 function onCell(x, y) {
-  const m = me(); if (!m || m.isDead || m.x === null || G.st.status !== 'active') return;
-  if (G.mode) return;
-  const d = DIRS[`${Math.sign(x - m.x)},${Math.sign(y - m.y)}`];
-  if (d && Math.max(Math.abs(x - m.x), Math.abs(y - m.y)) === 1) doMove(d);
+  const m = me(); if (!m || m.isDead || G.st.status !== 'active' || G.mode) return;
+  const t = effSel(); if (!t) return;
+  const dist = Math.max(Math.abs(x - t.x), Math.abs(y - t.y));
+  if (dist === 1) return doMove(DIRS[`${Math.sign(x - t.x)},${Math.sign(y - t.y)}`]);
+  if (explicitSel() && dist > t.range) select(null);   // clicking empty ground out of range lets go of the tank
 }
 function onKey(e) {
   if (!G || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.target.matches('input, textarea, select, [contenteditable]')) return;
-  if (e.key === 'Escape' && G.mode) return setMode(G.mode);
-  const d = KEYS[e.key] || KEYS[e.key.toLowerCase()];
   const m = me();
-  if (!d || !m || m.isDead || G.st.status !== 'active') return;
-  e.preventDefault(); doMove(d);
+  if (e.key === 'Escape') { if (G.mode) return setMode(G.mode); if (explicitSel()) return select(null); return; }
+  if (!m || m.isDead || G.st.status !== 'active') return;
+  if (/^[1-9]$/.test(e.key) && multi()) {
+    const t = m.tanks[+e.key - 1];
+    if (t && !t.isDead) { e.preventDefault(); select(G.sel === t.id ? null : t.id); }
+    return;
+  }
+  const d = KEYS[e.key] || KEYS[e.key.toLowerCase()];
+  if (!d) return;
+  e.preventDefault();
+  if (!effSel()) return toast('Select a tank first', 'bad');
+  doMove(d);
 }
 
 // ---------- actions ----------
@@ -319,25 +381,28 @@ async function post(path, body) {
 }
 async function doMove(direction) {
   if (G.busy) return; G.busy = true;
-  const r = await post('action/move', { direction });
+  const t = effSel();
+  const r = await post('action/move', { direction, tankId: t ? t.id : undefined });
   G.busy = false;
   if (!r.ok) toast(r.error, 'bad'); else if (r.heartPickedUp) toast('Picked up a heart', 'good');
 }
 async function doSimple(act) {
-  const r = await post(`action/${act}`);
+  const t = effSel();
+  const r = await post(`action/${act}`, act === 'heal' ? { tankId: t ? t.id : undefined } : undefined);
   if (!r.ok) toast(r.error, 'bad'); else if (act === 'upgrade') toast(`Range upgraded to ${r.newRange}`, 'good'); else toast(r.message || 'Repaired', 'good');
 }
 async function targeted(targetId) {
   const mode = G.mode; let r;
-  if (mode === 'shoot') r = await post('action/shoot', { targetId });
+  const t = effSel(), tankId = t ? t.id : undefined;
+  if (mode === 'shoot') r = await post('action/shoot', { tankId, targetId });
   else if (mode === 'vote') r = await post('action/vote', { targetId });
   else if (mode && mode.startsWith('gift')) {
     const i = document.querySelector(`input[data-amt="${targetId}"]`);
-    r = await post('action/gift', { targetId, type: mode === 'gift-hearts' ? 'hearts' : 'ap', amount: parseInt(i && i.value, 10) || 1 });
+    r = await post('action/gift', { tankId, targetId, type: mode === 'gift-hearts' ? 'hearts' : 'ap', amount: parseInt(i && i.value, 10) || 1 });
   } else return;
   if (!r.ok) return toast(r.error, 'bad');   // keep the mode on failure so the player can retry
   toast(r.message || 'Done', 'good');
-  if (G) { G.mode = null; G.board.update(G.st, { actionMode: null }); renderActions(); renderTarget(); }
+  if (G) { G.mode = null; refreshBoard(); renderActions(); renderTarget(); }
 }
 
 // ---------- host ----------

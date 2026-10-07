@@ -17,12 +17,17 @@ export function setAP(db, playerId, amount) {
   p.ap = Math.max(0, amount); alog(db, `set ${p.callsign}'s AP to ${p.ap}`);
   return { ok: true, ap: p.ap };
 }
-export function setHearts(db, playerId, amount) {
-  const p = find(db, playerId); if (!p) return NOPLAYER;
-  p.hearts = Math.max(0, Math.min(db.meta.config.maxHearts || 999, amount));
-  p.isDead = p.hearts <= 0;
-  alog(db, `set ${p.callsign}'s hearts to ${p.hearts}${p.isDead ? ' (down)' : ''}`);
-  return { ok: true, hearts: p.hearts, isDead: p.isDead };
+// `tankId` picks one tank; the first tank's id is the player's id, so the old
+// per-player call still works for single-tank games.
+export function setHearts(db, tankId, amount) {
+  let p = null, t = null;
+  for (const q of db.players) { const m = q.tanks.find(x => x.id === tankId); if (m) { p = q; t = m; } }
+  if (!t) return NOPLAYER;
+  t.hearts = Math.max(0, Math.min(db.meta.config.maxHearts || 999, amount));
+  t.isDead = t.hearts <= 0;
+  p.isDead = p.tanks.every(x => x.isDead);
+  alog(db, `set ${p.callsign}'s tank to ${t.hearts} hearts${t.isDead ? ' (down)' : ''}`);
+  return { ok: true, hearts: t.hearts, isDead: t.isDead };
 }
 function remove(db, playerId) {
   const i = db.players.findIndex(p => p.id === playerId);
@@ -54,7 +59,7 @@ export function getDetail(db, chat) {
     hostUserId: db.meta.hostUserId, config: db.meta.config, createdAt: db.meta.createdAt, startedAt: db.meta.startedAt,
     bannedUserIds: db.meta.bannedUserIds || [],
     players: db.players.map(p => ({ id: p.id, userId: p.userId, username: p.username, callsign: p.callsign, colorHex: p.colorHex,
-      x: p.x, y: p.y, hearts: p.hearts, ap: p.ap, range: p.range, isDead: p.isDead })),
+      ap: p.ap, isDead: p.isDead, tanks: p.tanks.map(t => ({ id: t.id, x: t.x, y: t.y, hearts: t.hearts, range: t.range, isDead: t.isDead })) })),
     heartPickups: db.heartPickups,
     groups: (db.groups || []).map(g => ({ id: g.id, name: g.name,
       members: g.memberIds.map(id => find(db, id)).filter(Boolean).map(p => p.callsign) })),

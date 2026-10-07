@@ -1,6 +1,6 @@
 // Lobby lifecycle for one game: create, join, leave, start, end. Pure over `db`.
 import { COLORS, sanitizeConfig } from './config.js';
-import { randomEmptyPos } from './engine.js';
+import { randomEmptyPos, makeTanks } from './engine.js';
 
 const uuid = () => crypto.randomUUID();
 const sysLog = (db, message, actorId) => db.gameLog.push({ time: Date.now(), message, type: 'system', actorId });
@@ -44,10 +44,7 @@ export function joinLobby(db, userId, username, callsign, colorId, team) {
   if (db.players.some(p => p.userId !== userId && p.callsign.toLowerCase() === cleanCallsign.toLowerCase())) {
     return { ok: false, error: 'Someone in this game already has that callsign' };
   }
-  // A color already worn by another tank (or an unknown id) falls back to the first free one.
-  const takenColors = new Set(db.players.filter(p => p.userId !== userId).map(p => p.colorId));
-  let color = COLORS.find(c => c.id === colorId);
-  if (!color || takenColors.has(color.id)) color = COLORS.find(c => !takenColors.has(c.id)) || color || COLORS[0];
+  const color = COLORS.find(c => c.id === colorId) || COLORS[db.players.length % COLORS.length];
   let assignedTeam = null;
   if (cfg.teamsEnabled) {
     const teamCount = cfg.teamCount || 2;
@@ -59,8 +56,8 @@ export function joinLobby(db, userId, username, callsign, colorId, team) {
     if (cfg.teamsEnabled) existing.team = assignedTeam;
   } else {
     const p = { id: uuid(), userId, username, callsign: cleanCallsign, colorId: color.id, colorHex: color.hex, team: assignedTeam,
-      ready: true, x: null, y: null, hearts: cfg.startingHearts, ap: cfg.startingAP, range: cfg.startingRange,
-      kills: 0, isDead: false, killedBy: null, joinedAt: Date.now() };
+      ready: true, ap: cfg.startingAP, kills: 0, isDead: false, joinedAt: Date.now() };
+    p.tanks = makeTanks(p, cfg);
     db.players.push(p);
     sysLog(db, `${cleanCallsign} joined the lobby${cfg.teamsEnabled ? ` (Team ${assignedTeam})` : ''}.`, p.id);
   }
@@ -89,7 +86,11 @@ export function startGame(db, userId) {
   if (db.meta.hostUserId !== userId) return { ok: false, error: 'Only the host can start the game' };
   if (db.meta.status !== 'lobby') return { ok: false, error: 'Game already started' };
   if (db.players.length < 2) return { ok: false, error: 'Need at least 2 tanks to start' };
-  db.players.forEach(p => { const pos = randomEmptyPos(db); p.x = pos.x; p.y = pos.y; });
+  const cfg = db.meta.config;
+  const need = db.players.length * (cfg.tanksPerPlayer || 1);
+  if (need > cfg.gridWidth * cfg.gridHeight) return { ok: false, error: `The board is too small for ${need} tanks` };
+  db.players.forEach(p => { p.tanks = makeTanks(p, cfg); });
+  db.players.forEach(p => p.tanks.forEach(t => { const pos = randomEmptyPos(db); t.x = pos.x; t.y = pos.y; }));
   db.meta.status = 'active'; db.meta.gameStarted = true; db.meta.startedAt = Date.now();
   sysLog(db, 'The game has begun! Good luck, tankers.');
   return { ok: true };

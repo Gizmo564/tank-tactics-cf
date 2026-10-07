@@ -61,13 +61,14 @@ function draw() {
       <div class="panel-title mt-16">Tanks</div>
       <div style="overflow-x:auto;"><table class="admin-table">
         <thead><tr><th>Callsign</th><th>Account</th><th>Hearts</th><th>AP</th><th>Range</th><th>Status</th><th></th></tr></thead>
-        <tbody>${g.players.map(p => `<tr>
-          <td><span class="dot" style="background:${p.colorHex}; display:inline-block; width:10px; height:10px; margin-right:6px;"></span>${esc(p.callsign)}</td>
-          <td class="small-muted">${esc(p.username)}</td>
-          <td><div class="inline-form"><input type="number" min="0" value="${p.hearts}" id="hearts-${p.id}" aria-label="Hearts"/><button class="btn sm" data-set-hearts="${p.id}">Set</button></div></td>
-          <td><div class="inline-form"><input type="number" min="0" value="${p.ap}" id="ap-${p.id}" aria-label="AP"/><button class="btn sm" data-set-ap="${p.id}">Set</button></div></td>
-          <td>${p.range}</td><td>${p.isDead ? '<span class="tag">down</span>' : '<span class="tag">alive</span>'}</td>
-          <td><div class="gap-8"><button class="btn sm icon-btn" data-kick="${p.id}">${ICONS.userX(12)} Kick</button><button class="btn sm bad icon-btn" data-ban="${p.id}">${ICONS.ban(12)} Ban</button></div></td></tr>`).join('')}</tbody>
+        <tbody>${g.players.map(p => p.tanks.map((t, i) => `<tr>
+          <td>${i === 0 ? `<span class="dot" style="background:${p.colorHex}; display:inline-block; width:10px; height:10px; margin-right:6px;"></span>${esc(p.callsign)}` : `<span class="small-muted">↳ tank ${i + 1}</span>`}</td>
+          <td class="small-muted">${i === 0 ? esc(p.username) : ''}</td>
+          <td><div class="inline-form"><input type="number" min="0" value="${t.hearts}" id="hearts-${t.id}" aria-label="Hearts"/><button class="btn sm" data-set-hearts="${t.id}">Set</button></div></td>
+          <td>${i === 0 ? `<div class="inline-form"><input type="number" min="0" value="${p.ap}" id="ap-${p.id}" aria-label="AP (shared by all this player's tanks)"/><button class="btn sm" data-set-ap="${p.id}">Set</button></div>` : ''}</td>
+          <td>${t.range}</td><td>${t.isDead ? '<span class="tag">down</span>' : '<span class="tag">alive</span>'}</td>
+          <td>${i === 0 ? `<div class="gap-8"><button class="btn sm icon-btn" data-kick="${p.id}">${ICONS.userX(12)} Kick</button><button class="btn sm bad icon-btn" data-ban="${p.id}">${ICONS.ban(12)} Ban</button></div>` : ''}</td></tr>`).join('')).join('')}
+        </tbody>
       </table></div>
       ${g.bannedUserIds.length ? `<p class="hint">${g.bannedUserIds.length} account(s) banned from this game. ${g.bannedUserIds.map(id => `<button class="btn sm ghost" data-unban="${esc(id)}">Unban ${esc(id.slice(0, 6))}…</button>`).join(' ')}</p>` : ''}
     </div>

@@ -1,6 +1,7 @@
 {
   "music": [
     "track1.mp3"
+    "track2.mp3"
   ],
   "sfx": {
     "move": "move.mp3",

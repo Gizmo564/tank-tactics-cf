@@ -3,6 +3,12 @@
 // validates first, mutates `db` only on success, and returns a result object.
 // No storage, no clock injection beyond Date.now(), so it is trivially testable.
 // Persistence and broadcasting are the Durable Object's job.
+//
+// Model: a PLAYER (one account) owns 1+ TANKS. AP, kills, team, callsign and
+// jury/haunting status live on the player; position, hearts and range live on
+// each tank. A player is "down" (isDead) only when ALL of their tanks are.
+// The first tank's id equals the player's id, so single-tank games look the
+// same as they always did to clients.
 
 const uuid = () => crypto.randomUUID();
 
@@ -19,9 +25,44 @@ const byId = (db, id) => db.players.find(p => p.id === id);
 const requireActive = db => (db.meta.status !== 'active' ? 'The game is not currently active' : null);
 const fail = error => ({ ok: false, error });
 
+// ---------- tanks ----------
+export function makeTanks(player, cfg) {
+  const n = Math.max(1, cfg.tanksPerPlayer || 1);
+  return Array.from({ length: n }, (_, i) => ({ id: i === 0 ? player.id : `${player.id}-${i + 1}`,
+    x: null, y: null, hearts: cfg.startingHearts, range: cfg.startingRange, isDead: false, killedBy: null }));
+}
+// Upgrades single-tank data saved before multi-tank existed. Safe to call repeatedly.
+export function ensureTanks(db) {
+  for (const p of db.players) {
+    if (Array.isArray(p.tanks)) continue;
+    p.tanks = [{ id: p.id, x: p.x ?? null, y: p.y ?? null, hearts: p.hearts ?? 0, range: p.range ?? 2, isDead: !!p.isDead, killedBy: p.killedBy || null }];
+    delete p.x; delete p.y; delete p.hearts; delete p.range; delete p.killedBy;
+  }
+  return db;
+}
+const syncDown = p => { p.isDead = p.tanks.every(t => t.isDead); return p.isDead; };
+const allTanks = db => db.players.flatMap(p => p.tanks.map(t => ({ p, t })));
+const findTank = (db, tankId) => { for (const p of db.players) { const t = p.tanks.find(t => t.id === tankId); if (t) return { p, t }; } return null; };
+// The acting tank must be one of the caller's own. Without an id it is the
+// obvious one (single tank, or exactly one still alive); otherwise ask.
+function ownTank(db, userId, tankId) {
+  const p = byUser(db, userId);
+  if (!p) return { error: 'You are not in this game' };
+  if (tankId) {
+    const t = p.tanks.find(t => t.id === tankId);
+    return t ? { p, t } : { error: 'That is not one of your tanks' };
+  }
+  if (p.tanks.length === 1) return { p, t: p.tanks[0] };
+  const alive = p.tanks.filter(t => !t.isDead);
+  if (alive.length === 1) return { p, t: alive[0] };
+  return { error: 'Select a tank first' };
+}
+const tankAt = (db, x, y, exceptId) => allTanks(db).find(({ t }) => t.id !== exceptId && t.x === x && t.y === y);
+
 export function randomEmptyPos(db, rand = Math.random) {
   const cfg = db.meta.config;
-  const occupied = new Set(db.players.filter(p => p.x !== null).map(p => `${p.x},${p.y}`));
+  // Wrecks stay on the board and block their square, so every tank counts.
+  const occupied = new Set(allTanks(db).filter(({ t }) => t.x !== null && t.x !== undefined).map(({ t }) => `${t.x},${t.y}`));
   const total = cfg.gridWidth * cfg.gridHeight;
   if (occupied.size >= total) throw new Error('Grid is full');
   // Enumerate free cells so a nearly-full board can never loop forever.
@@ -32,77 +73,85 @@ export function randomEmptyPos(db, rand = Math.random) {
 
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0], upleft: [-1, -1], upright: [1, -1], downleft: [-1, 1], downright: [1, 1] };
 
-export function movePlayer(db, userId, direction) {
+export function movePlayer(db, userId, direction, tankId) {
   const err = requireActive(db); if (err) return fail(err);
   const cfg = db.meta.config;
-  const player = byUser(db, userId);
-  if (!player) return fail('You are not in this game');
-  if (player.isDead) return fail('Fallen tanks cannot move');
+  const o = ownTank(db, userId, tankId); if (o.error) return fail(o.error);
+  const { p: player, t: tank } = o;
+  if (tank.isDead) return fail('Fallen tanks cannot move');
   if (player.ap < cfg.moveCost) return fail(`Not enough AP (need ${cfg.moveCost})`);
   const delta = DIRS[direction];
   if (!delta) return fail('Invalid direction');
-  const nx = player.x + delta[0], ny = player.y + delta[1];
+  const nx = tank.x + delta[0], ny = tank.y + delta[1];
   if (nx < 0 || nx >= cfg.gridWidth || ny < 0 || ny >= cfg.gridHeight) return fail('That would drive off the map');
-  if (db.players.find(p => p.id !== player.id && p.x === nx && p.y === ny)) return fail('Square is occupied');
+  if (tankAt(db, nx, ny, tank.id)) return fail('Square is occupied');
 
-  player.x = nx; player.y = ny;
+  tank.x = nx; tank.y = ny;
   player.ap -= cfg.moveCost;
   let heartPickedUp = false;
   const heart = db.heartPickups.find(h => !h.collected && h.x === nx && h.y === ny);
   if (heart) {
     heart.collected = true;
-    player.hearts = Math.min(player.hearts + 1, cfg.maxHearts || 999);
+    tank.hearts = Math.min(tank.hearts + 1, cfg.maxHearts || 999);
     heartPickedUp = true;
-    log(db, `${player.callsign} picked up a heart! Now at ${player.hearts} hearts`, 'heart', player.id);
+    log(db, `${player.callsign} picked up a heart! Now at ${tank.hearts} hearts`, 'heart', player.id);
   }
   log(db, `${player.callsign} moved ${direction}`, 'move', player.id);
-  return { ok: true, heartPickedUp, fx: { type: 'move', id: player.id, x: nx, y: ny } };
+  return { ok: true, heartPickedUp, fx: { type: 'move', id: tank.id, x: nx, y: ny } };
 }
 
-export function shootPlayer(db, userId, targetId) {
+export function shootPlayer(db, userId, tankId, targetTankId) {
   const err = requireActive(db); if (err) return fail(err);
   const cfg = db.meta.config;
-  const attacker = byUser(db, userId), target = byId(db, targetId);
-  if (!attacker) return fail('You are not in this game');
-  if (!target) return fail('Target not found');
-  if (attacker.isDead) return fail('Fallen tanks cannot shoot');
+  const o = ownTank(db, userId, tankId); if (o.error) return fail(o.error);
+  const { p: attacker, t: from } = o;
+  const tg = findTank(db, targetTankId);
+  if (!tg) return fail('Target not found');
+  const { p: tp, t: target } = tg;
+  if (from.isDead) return fail('Fallen tanks cannot shoot');
   if (target.isDead) return fail('Target is already down');
-  if (!cfg.friendlyFire && attacker.id === target.id) return fail('Cannot shoot yourself');
-  if (cfg.teamsEnabled && !cfg.teamFriendlyFireEnabled && attacker.team && attacker.team === target.team) {
+  const own = tp.id === attacker.id;
+  if (own && !cfg.friendlyFire) return fail(from.id === target.id ? 'Cannot shoot yourself' : 'Cannot shoot your own tanks');
+  if (!own && cfg.teamsEnabled && !cfg.teamFriendlyFireEnabled && attacker.team && attacker.team === tp.team) {
     return fail(`Cannot shoot your own team (Team ${attacker.team})`);
   }
   if (attacker.ap < cfg.shootCost) return fail(`Not enough AP (need ${cfg.shootCost})`);
-  const dist = getDistance(attacker, target);
-  if (dist > attacker.range) return fail(`Out of range (your range: ${attacker.range}, distance: ${dist})`);
+  const dist = getDistance(from, target);
+  if (dist > from.range) return fail(`Out of range (your range: ${from.range}, distance: ${dist})`);
 
   attacker.ap -= cfg.shootCost;
   const damage = cfg.shootDamage || 1;
   target.hearts -= damage;
   let killMsg = '', winMessage = null;
   if (target.hearts <= 0) {
-    target.isDead = true; target.killedBy = attacker.id;
-    attacker.kills = (attacker.kills || 0) + 1;
-    if (cfg.transferAPOnKill !== false) {
-      const ap = target.ap; attacker.ap += ap; target.ap = 0;
-      killMsg = ` ${target.callsign} is out! ${attacker.callsign} gains ${ap} AP.`;
-      log(db, `${attacker.callsign} eliminated ${target.callsign}!${ap > 0 ? ` +${ap} AP` : ''}`, 'kill', attacker.id);
+    target.hearts = 0; target.isDead = true; target.killedBy = attacker.id;
+    const eliminated = syncDown(tp);
+    if (!own) attacker.kills = (attacker.kills || 0) + 1;
+    if (eliminated && !own && cfg.transferAPOnKill !== false) {
+      const ap = tp.ap; attacker.ap += ap; tp.ap = 0;
+      killMsg = ` ${tp.callsign} is out! ${attacker.callsign} gains ${ap} AP.`;
+      log(db, `${attacker.callsign} eliminated ${tp.callsign}!${ap > 0 ? ` +${ap} AP` : ''}`, 'kill', attacker.id);
+    } else if (eliminated) {
+      killMsg = ` ${tp.callsign} is out!`;
+      log(db, `${attacker.callsign} eliminated ${tp.callsign}!`, 'kill', attacker.id);
     } else {
-      killMsg = ` ${target.callsign} is out!`;
-      log(db, `${attacker.callsign} eliminated ${target.callsign}!`, 'kill', attacker.id);
+      killMsg = ` One of ${tp.callsign}'s tanks was destroyed.`;
+      log(db, `${attacker.callsign} destroyed one of ${tp.callsign}'s tanks`, 'kill', attacker.id);
     }
     winMessage = checkWinCondition(db, attacker);
   } else {
-    log(db, `${attacker.callsign} hit ${target.callsign} for ${damage} hearts (${target.hearts} left)`, 'shoot', attacker.id);
+    log(db, `${attacker.callsign} hit ${own ? 'their own tank' : tp.callsign} for ${damage} hearts (${target.hearts} left)`, 'shoot', attacker.id);
   }
-  return { ok: true, targetDead: target.isDead, message: `Hit ${target.callsign}.${killMsg}${winMessage ? ` ${winMessage}` : ''}`,
-    fx: { type: target.isDead ? 'kill' : 'hit', from: attacker.id, to: target.id } };
+  return { ok: true, targetDead: target.isDead, message: `Hit ${tp.callsign}.${killMsg}${winMessage ? ` ${winMessage}` : ''}`,
+    fx: { type: target.isDead ? 'kill' : 'hit', from: from.id, to: target.id } };
 }
 
 // Ends the game right here (with a victory log line) if the win condition is
 // met after an elimination. Returns a message for the shooter, or null.
+// "Alive" is per player: someone with at least one living tank is still in.
 export function checkWinCondition(db, attacker) {
   const cfg = db.meta.config;
-  const alive = db.players.filter(p => !p.isDead);
+  const alive = db.players.filter(p => !syncDown(p));
   const mode = cfg.winCondition || 'lastStanding';
   let winnerLabel = null;
   if (mode === 'killTarget') {
@@ -126,21 +175,22 @@ export function checkWinCondition(db, attacker) {
   return `${winnerLabel}${draw ? '' : ' wins'} — game over!`;
 }
 
-export function addHeart(db, userId) {
+export function addHeart(db, userId, tankId) {
   const err = requireActive(db); if (err) return fail(err);
   const cfg = db.meta.config;
-  const player = byUser(db, userId);
-  if (!player) return fail('You are not in this game');
-  if (player.isDead) return fail('Fallen tanks cannot repair');
+  const o = ownTank(db, userId, tankId); if (o.error) return fail(o.error);
+  const { p: player, t: tank } = o;
+  if (tank.isDead) return fail('Fallen tanks cannot repair');
   if (player.ap < cfg.addHeartCost) return fail(`Not enough AP (need ${cfg.addHeartCost})`);
   const cap = cfg.maxHearts || 999;
-  if (player.hearts >= cap) return fail(`Already at max hearts (${cap})`);
+  if (tank.hearts >= cap) return fail(`Already at max hearts (${cap})`);
   player.ap -= cfg.addHeartCost;
-  player.hearts = Math.min(player.hearts + 1, cap);
-  log(db, `${player.callsign} repaired to ${player.hearts} hearts`, 'heal', player.id);
-  return { ok: true, fx: { type: 'heal', id: player.id } };
+  tank.hearts = Math.min(tank.hearts + 1, cap);
+  log(db, `${player.callsign} repaired to ${tank.hearts} hearts`, 'heal', player.id);
+  return { ok: true, fx: { type: 'heal', id: tank.id } };
 }
 
+// One purchase raises the range of every tank the player owns.
 export function upgradeRange(db, userId) {
   const err = requireActive(db); if (err) return fail(err);
   const cfg = db.meta.config;
@@ -149,49 +199,69 @@ export function upgradeRange(db, userId) {
   if (player.isDead) return fail('Fallen tanks cannot upgrade');
   if (player.ap < cfg.upgradeRangeCost) return fail(`Not enough AP (need ${cfg.upgradeRangeCost})`);
   const cap = cfg.maxRange || 999;
-  if (player.range >= cap) return fail(`Already at max range (${cap})`);
+  if (player.tanks.every(t => t.range >= cap)) return fail(`Already at max range (${cap})`);
   player.ap -= cfg.upgradeRangeCost;
-  player.range = Math.min(player.range + 1, cap);
-  log(db, `${player.callsign} upgraded range to ${player.range}`, 'upgrade', player.id);
-  return { ok: true, newRange: player.range };
+  player.tanks.forEach(t => { t.range = Math.min(t.range + 1, cap); });
+  const best = Math.max(...player.tanks.map(t => t.range));
+  log(db, `${player.callsign} upgraded range to ${best}`, 'upgrade', player.id);
+  return { ok: true, newRange: best };
 }
 
-export function sendGift(db, userId, targetId, type, amount) {
+// Gifts go tank-to-tank. Hearts between your own tanks (or a teammate's) may
+// even give away a tank's last heart; gifts to other players must leave the
+// giver one. Hearts between your own tanks cost AP (cfg.tankGiftCost); AP is
+// one shared pool, so AP only goes to other players.
+export function sendGift(db, userId, fromTankId, targetTankId, type, amount) {
   const err = requireActive(db); if (err) return fail(err);
   const cfg = db.meta.config;
   if (!cfg.giftingEnabled) return fail('Gifting is disabled in this game');
-  const sender = byUser(db, userId), target = byId(db, targetId);
-  if (!sender) return fail('You are not in this game');
-  if (!target) return fail('Target not found');
-  if (sender.isDead) return fail('Fallen tanks cannot send gifts');
+  const o = ownTank(db, userId, fromTankId); if (o.error) return fail(o.error);
+  const { p: sender, t: from } = o;
+  const tg = findTank(db, targetTankId);
+  if (!tg) return fail('Target not found');
+  const { p: tp, t: target } = tg;
+  if (from.isDead) return fail('Fallen tanks cannot send gifts');
+  if (from.id === target.id) return fail('Pick a different tank');
   if (cfg.giftingRequiresRange !== false) {
-    const dist = getDistance(sender, target);
-    if (dist > sender.range) return fail(`Out of range (your range: ${sender.range}, distance: ${dist})`);
+    const dist = getDistance(from, target);
+    if (dist > from.range) return fail(`Out of range (your range: ${from.range}, distance: ${dist})`);
   }
   if (target.isDead && type !== 'hearts') return fail('Can only send hearts to fallen tanks');
   amount = parseInt(amount);
   if (isNaN(amount) || amount < 1) return fail('Invalid amount');
+  const own = tp.id === sender.id;
+  const friendly = own || (cfg.teamsEnabled && sender.team && sender.team === tp.team);
 
   if (type === 'hearts') {
-    if (sender.hearts <= amount) return fail('Not enough hearts (must keep at least 1)');
-    sender.hearts -= amount;
+    if (from.hearts < amount) return fail('Not enough hearts');
+    if (!friendly && from.hearts === amount) return fail('Not enough hearts (must keep at least 1)');
+    const cost = own ? (cfg.tankGiftCost ?? 1) : 0;
+    if (sender.ap < cost) return fail(`Not enough AP (need ${cost})`);
+    sender.ap -= cost;
+    from.hearts -= amount;
+    let senderDown = false;
+    if (from.hearts <= 0) { from.isDead = true; from.killedBy = null; senderDown = true; }
     target.hearts = Math.min(target.hearts + amount, cfg.maxHearts || 999);
-    if (target.isDead && target.hearts > 0) {
-      target.isDead = false; target.ap = 0;
-      log(db, `${target.callsign} was revived by ${sender.callsign}!`, 'revive', sender.id);
-    } else {
-      log(db, `${sender.callsign} gifted ${amount} hearts to ${target.callsign}`, 'gift', sender.id);
-    }
+    const revived = target.isDead && target.hearts > 0;
+    if (revived) { target.isDead = false; target.killedBy = null; }
+    syncDown(tp); syncDown(sender);
+    const who = own ? 'their own tank' : tp.callsign;
+    if (revived) log(db, `${tp.callsign}${own ? "'s tank" : ''} was revived by ${sender.callsign}!`, 'revive', sender.id);
+    else log(db, `${sender.callsign} gifted ${amount} hearts to ${who}`, 'gift', sender.id);
+    if (senderDown) log(db, `One of ${sender.callsign}'s tanks gave away its last heart`, 'gift', sender.id);
   } else if (type === 'ap') {
+    if (own) return fail('Your tanks share one AP pool — send AP to another player');
     if (sender.ap < amount) return fail('Not enough AP');
-    sender.ap -= amount; target.ap += amount;
-    log(db, `${sender.callsign} gifted ${amount} AP to ${target.callsign}`, 'gift', sender.id);
+    sender.ap -= amount; tp.ap += amount;
+    log(db, `${sender.callsign} gifted ${amount} AP to ${tp.callsign}`, 'gift', sender.id);
   } else return fail('Invalid gift type');
-  return { ok: true };
+  return { ok: true, fx: { type: 'gift', from: from.id, to: target.id } };
 }
 
 const dayKey = (t = Date.now()) => new Date(t).toDateString(); // UTC on Workers
 
+// Jury votes are per player: a player whose tanks are all down can vote for a
+// player who still has a living tank.
 export function juryVote(db, userId, targetId) {
   const err = requireActive(db); if (err) return fail(err);
   if (!db.meta.config.juryEnabled) return fail('Jury voting is disabled');
@@ -255,6 +325,7 @@ export function hostGrantAllAP(db, hostUserId) {
   return { ok: true, message: grantDailyAP(db, true, 'host') };
 }
 
+// One grant per player (not per tank), skipping players who are fully down.
 export function grantDailyAP(db, force = false, logType = 'system') {
   if (db.meta.status !== 'active') return null;
   const cfg = db.meta.config;
@@ -278,8 +349,8 @@ export function grantDailyAP(db, force = false, logType = 'system') {
     else { p.ap += cfg.apPerDay; granted++; }
   }
   db.meta.lastAPGrant = Date.now();
-  log(db, `${logType === 'host' ? 'Host manually granted' : 'Daily'} AP (+${cfg.apPerDay}) to ${granted} tanks`, logType);
-  return `Granted AP to ${granted} tanks`;
+  log(db, `${logType === 'host' ? 'Host manually granted' : 'Daily'} AP (+${cfg.apPerDay}) to ${granted} ${granted === 1 ? 'player' : 'players'}`, logType);
+  return `Granted AP to ${granted} ${granted === 1 ? 'player' : 'players'}`;
 }
 
 export function spawnHeartScheduled(db) {
@@ -297,18 +368,22 @@ export function spawnHeartScheduled(db) {
 }
 
 // Per-viewer state: hides other players' AP and, with fog of war on, hides
-// tanks outside the viewer's own range (visibility == shoot range).
+// tanks outside the range of all of the viewer's living tanks.
 export function getGameState(db, requestingUserId) {
   const cfg = db.meta.config;
   const me = byUser(db, requestingUserId);
-  const fogActive = !!cfg.fogOfWarEnabled && me && !me.isDead && me.x !== null;
+  const watchers = me ? me.tanks.filter(t => !t.isDead && t.x !== null) : [];
+  const fogActive = !!cfg.fogOfWarEnabled && me && !me.isDead && watchers.length > 0;
   let fogHidCount = 0;
   const players = db.players.map(p => {
     const isSelf = p.userId === requestingUserId;
-    let x = p.x, y = p.y;
-    if (fogActive && !isSelf && p.x !== null && getDistance(me, p) > me.range) { x = null; y = null; fogHidCount++; }
+    const tanks = p.tanks.map(t => {
+      let x = t.x, y = t.y;
+      if (fogActive && !isSelf && t.x !== null && !watchers.some(w => getDistance(w, t) <= w.range)) { x = null; y = null; fogHidCount++; }
+      return { id: t.id, x, y, hearts: t.hearts, range: t.range, isDead: t.isDead };
+    });
     return { id: p.id, callsign: p.callsign, colorId: p.colorId, colorHex: p.colorHex, team: p.team || null,
-      kills: p.kills || 0, x, y, hearts: p.hearts, range: p.range, isDead: p.isDead, ap: isSelf ? p.ap : null, isOwn: isSelf };
+      kills: p.kills || 0, isDead: p.isDead, ap: isSelf ? p.ap : null, isOwn: isSelf, tanks };
   });
   const today = dayKey();
   const voteCount = {};
@@ -339,7 +414,7 @@ export function getGameState(db, requestingUserId) {
       winCondition: cfg.winCondition || 'lastStanding', killTargetCount: cfg.killTargetCount || 5,
       apPerDay: cfg.apPerDay, apIntervalHours: cfg.apIntervalHours, apSchedule: cfg.apSchedule,
       transferAPOnKill: cfg.transferAPOnKill !== false, shootDamage: cfg.shootDamage || 1, hauntingEnabled: !!cfg.hauntingEnabled,
-      heartSpawnEnabled: !!cfg.heartSpawnEnabled
+      heartSpawnEnabled: !!cfg.heartSpawnEnabled, tanksPerPlayer: cfg.tanksPerPlayer || 1, tankGiftCost: cfg.tankGiftCost ?? 1
     }
   };
 }

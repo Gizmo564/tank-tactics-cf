@@ -130,7 +130,7 @@ async function route(req, env) {
       return json(await call(plain[rest], args));
     }
     let a = rest.match(/^action\/(move|shoot|heal|upgrade|gift|vote)$/);
-    if (method === 'POST' && a) return json(await call(a[1], { direction: body.direction, targetId: body.targetId, type: body.type, amount: body.amount }));
+    if (method === 'POST' && a) return json(await call(a[1], { direction: body.direction, tankId: body.tankId, targetId: body.targetId, type: body.type, amount: body.amount }));
     if (method === 'POST' && rest === 'chat/send') return json(await call('chat.send', { text: body.text, toId: body.toId, groupId: body.groupId }));
     if (method === 'GET' && rest === 'chat') return json(await call('chat.list', { since: url.searchParams.get('since') }));
     if (rest === 'groups') {

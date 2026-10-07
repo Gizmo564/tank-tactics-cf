@@ -5,6 +5,7 @@
 export const DEFAULT_CONFIG = {
   gridWidth: 12, gridHeight: 12, maxPlayers: 12,
   startingHearts: 3, startingAP: 0, startingRange: 2,
+  tanksPerPlayer: 1, tankGiftCost: 1,
   maxHearts: 10, maxRange: 10,
   moveCost: 1, shootCost: 1, addHeartCost: 3, upgradeRangeCost: 3,
   apPerDay: 1, apSchedule: 'workdays', apIntervalHours: 24, apGrantWindowHours: 2,
@@ -51,9 +52,11 @@ export const PRESETS = [
 export const FIELD_SPEC = [
   { key: 'gridWidth', label: 'Board width', group: 'board', min: 5, max: 40, type: 'int' },
   { key: 'gridHeight', label: 'Board height', group: 'board', min: 5, max: 40, type: 'int' },
-  { key: 'maxPlayers', label: 'Max tanks', group: 'board', min: 2, max: 60, type: 'int' },
-  { key: 'startingHearts', label: 'Starting hearts', group: 'board', min: 1, max: 20, type: 'int' },
-  { key: 'startingRange', label: 'Starting range', group: 'board', min: 1, max: 15, type: 'int' },
+  { key: 'maxPlayers', label: 'Max players', group: 'board', min: 2, max: 60, type: 'int' },
+  { key: 'tanksPerPlayer', label: 'Tanks per player', group: 'board', min: 1, max: 3, type: 'int' },
+  { key: 'tankGiftCost', label: 'AP cost to gift a heart between your own tanks', group: 'economy', min: 0, max: 10, type: 'int' },
+  { key: 'startingHearts', label: 'Starting hearts (per tank)', group: 'board', min: 1, max: 20, type: 'int' },
+  { key: 'startingRange', label: 'Starting range (per tank)', group: 'board', min: 1, max: 15, type: 'int' },
   { key: 'maxHearts', label: 'Max hearts', group: 'board', min: 1, max: 30, type: 'int' },
   { key: 'maxRange', label: 'Max range', group: 'board', min: 1, max: 30, type: 'int' },
   { key: 'apPerDay', label: 'AP per grant', group: 'ap', min: 1, max: 20, type: 'int' },
@@ -84,7 +87,7 @@ export const FIELD_SPEC = [
   { key: 'teamCount', label: 'Number of teams', group: 'teams', min: 2, max: 6, type: 'int' },
   { key: 'teamFriendlyFireEnabled', label: 'Allow shooting teammates', group: 'teams', type: 'bool' },
   { key: 'winCondition', label: 'Win condition', group: 'teams', type: 'enum', options: ['lastStanding', 'lastTeamStanding', 'killTarget'] },
-  { key: 'endgamePlayerCount', label: 'lastStanding: end when N or fewer tanks remain (co-winners if >1)', group: 'teams', min: 1, max: 20, type: 'int' },
+  { key: 'endgamePlayerCount', label: 'lastStanding: end when N or fewer players remain (co-winners if >1)', group: 'teams', min: 1, max: 20, type: 'int' },
   { key: 'killTargetCount', label: 'killTarget: kills needed to win', group: 'teams', min: 1, max: 50, type: 'int' }
 ];
 

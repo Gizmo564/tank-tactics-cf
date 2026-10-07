@@ -3,6 +3,13 @@
 // variables so tanks look right in every theme.
 
 function clamp(n) { return Math.max(0, Math.min(255, Math.round(n))); }
+function gray(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return '#8a8a8a';
+  const n = parseInt(m[1], 16);
+  const l = clamp(0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255));
+  return '#' + [l, l, l].map(v => v.toString(16).padStart(2, '0')).join('');
+}
 export function shade(hex, amt) {            // amt in -1..1 (negative = darker)
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
   if (!m) return hex || '#888';
@@ -13,9 +20,11 @@ export function shade(hex, amt) {            // amt in -1..1 (negative = darker)
 
 // Inner SVG markup for one 64x64 tank cell. `angle` rotates the turret (0 = up).
 export function tankMarkup({ colorHex, dead = false, angle = 0, own = false }) {
-  const body = dead ? '#cdbfa3' : colorHex;
-  const dark = dead ? '#a89a7c' : shade(colorHex, -0.28);
-  const cap = dead ? '#e3d8c0' : shade(colorHex, 0.5);
+  // A wreck is the tank's own colour drained to grey, so you can still tell whose it was.
+  const base = dead ? gray(colorHex) : colorHex;
+  const body = base;
+  const dark = shade(base, -0.28);
+  const cap = shade(base, 0.5);
   return `
     <rect class="t-shadow" x="14" y="16" width="38" height="38" rx="9"/>
     <rect class="t-body" x="11" y="11" width="38" height="38" rx="9" fill="${body}"/>
@@ -36,6 +45,6 @@ export function tankSvg(colorHex, size = 64, angle = 0) {
 
 // Small icon version: the tank's body is centred at (30,30) in its 64x64 cell,
 // so shift the viewBox to put that point in the middle of the box.
-export function tankIcon(colorHex, size = 24) {
-  return `<svg class="tank-art" width="${size}" height="${size}" viewBox="-2 -2 64 64" aria-hidden="true">${tankMarkup({ colorHex })}</svg>`;
+export function tankIcon(colorHex, size = 24, dead = false) {
+  return `<svg class="tank-art" width="${size}" height="${size}" viewBox="-2 -2 64 64" aria-hidden="true">${tankMarkup({ colorHex, dead })}</svg>`;
 }

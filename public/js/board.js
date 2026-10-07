@@ -64,21 +64,23 @@ export class Board {
     const cfg = st.config;
     if (cfg.gridWidth !== this.w || cfg.gridHeight !== this.h || !this.svg) this.build(cfg.gridWidth, cfg.gridHeight);
     this.svg.classList.toggle('no-names', !this.showNames);
-    const me = st.players.find(p => p.isOwn);
-    this.syncPickups(st);
-    this.syncTanks(st);
-    this.syncRange(st, me, opts.actionMode);
-    this.syncFog(st, me);
+    const flat = flatTanks(st);                       // every visible tank, with its owner's details
+    const mine = flat.filter(u => u.isOwn && !u.isDead);
+    const sel = opts.selId ? mine.find(u => u.id === opts.selId) : null;
+    this.syncPickups(st, flat);
+    this.syncTanks(flat, sel && opts.explicit ? sel.id : null);
+    this.syncRange(sel, opts.actionMode);
+    this.syncFog(st, mine);
     this.ready = true;
   }
 
   center(x, y) { return { x: x * U + U / 2, y: y * U + U / 2 }; }
 
-  syncPickups(st) {
+  syncPickups(st, flat) {
     const live = new Set(st.heartPickups.map(h => `${h.x},${h.y}`));
     for (const [k, g] of this.pickups) if (!live.has(k)) {
       const [x, y] = k.split(',').map(Number);
-      const taken = st.players.some(p => p.x === x && p.y === y);
+      const taken = flat.some(u => u.x === x && u.y === y);
       if (taken) this.pop(x, y, 'pickup'); // someone drove onto it
       g.remove(); this.pickups.delete(k);
     }
@@ -91,9 +93,9 @@ export class Board {
     }
   }
 
-  syncTanks(st) {
+  syncTanks(flat, explicitSel) {
     const seen = new Set();
-    for (const p of st.players) {
+    for (const p of flat) {
       if (p.x === null || p.y === null) continue;           // hidden by fog or not placed
       seen.add(p.id);
       let t = this.tanks.get(p.id);
@@ -110,7 +112,10 @@ export class Board {
         t.x = p.x; t.y = p.y;
         t.g.style.transform = `translate(${p.x * U}px, ${p.y * U}px)`;
       }
-      const sig = [p.colorHex, p.isDead, p.isOwn, p.hearts, p.callsign, Math.round(t.angle), p.team].join('|');
+      // With a tank selected, the player's other living tanks fade back.
+      p.selected = p.id === explicitSel;
+      p.faded = !!explicitSel && p.isOwn && !p.isDead && !p.selected;
+      const sig = [p.colorHex, p.isDead, p.isOwn, p.hearts, p.callsign, Math.round(t.angle), p.team, p.selected, p.faded].join('|');
       if (sig !== t.sig) { this.paintTank(t, p); t.sig = sig; }
       if (p.hearts < t.hearts && !p.isDead) this.pop(p.x, p.y, 'hit');
       t.hearts = p.hearts;
@@ -122,11 +127,13 @@ export class Board {
     const name = (p.callsign || '').slice(0, 9);
     t.g.classList.toggle('dead', !!p.isDead);
     t.g.classList.toggle('own', !!p.isOwn);
+    t.g.classList.toggle('selected', !!p.selected);
+    t.g.classList.toggle('faded', !!p.faded);
     // The art's own centre is (30,30). It is drawn at 85% and centred on (32,37) so the heart pill fits above it.
     t.g.innerHTML = `
       <title>${esc(p.callsign)}${p.team ? ` (Team ${p.team})` : ''} — ${p.isDead ? 'down' : p.hearts + ' hearts'}</title>
       <g class="tank-inner">
-        ${p.isOwn && !p.isDead ? '<circle class="own-ring" cx="32" cy="37" r="25"><animateTransform attributeName="transform" type="rotate" from="0 32 37" to="360 32 37" dur="9s" repeatCount="indefinite"/></circle>' : ''}
+        ${p.isOwn && !p.isDead ? `<circle class="own-ring${p.selected ? ' sel' : ''}" cx="32" cy="37" r="25"><animateTransform attributeName="transform" type="rotate" from="0 32 37" to="360 32 37" dur="9s" repeatCount="indefinite"/></circle>` : ''}
         <g transform="translate(32 37) scale(.85) translate(-30 -30)">${tankMarkup({ colorHex: p.colorHex, dead: p.isDead, angle: Math.round(t.angle), own: p.isOwn })}</g>
         ${p.team ? `<circle class="team-dot" cx="54" cy="20" r="5" fill="${TEAM_COLORS[(p.team - 1) % TEAM_COLORS.length]}"/>` : ''}
       </g>
@@ -146,18 +153,18 @@ export class Board {
   // choose the equivalent angle closest to the current one so turrets take the short way round
   nearest(cur, target) { let d = ((target - cur) % 360 + 540) % 360 - 180; return cur + d; }
 
-  syncRange(st, me, mode) {
+  syncRange(me, mode) {
     this.gRange.innerHTML = '';
     if (!me || me.x === null || !mode || !['shoot', 'gift-hearts', 'gift-ap'].includes(mode)) return;
     for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
       if (cheb(me, { x, y }) <= me.range) el('rect', { class: 'range-cell', x: x * U + 1, y: y * U + 1, width: U - 2, height: U - 2, rx: 6 }, this.gRange);
     }
   }
-  syncFog(st, me) {
+  syncFog(st, mine) {
     this.gFog.innerHTML = '';
-    if (!st.fogActive || !me || me.x === null) return;
+    if (!st.fogActive || !mine.length) return;
     for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
-      if (cheb(me, { x, y }) > me.range) el('rect', { class: 'fog-cell', x: x * U, y: y * U, width: U, height: U }, this.gFog);
+      if (!mine.some(w => cheb(w, { x, y }) <= w.range)) el('rect', { class: 'fog-cell', x: x * U, y: y * U, width: U, height: U }, this.gFog);
     }
   }
 
@@ -172,6 +179,7 @@ export class Board {
   fx(fx) {
     if (!fx) return;
     if (fx.type === 'move') { play('move'); return; }
+    if (fx.type === 'gift') { const c = this.tankCenter(fx.to); if (c) this.floater(c.x, c.y - 10, '+♥', 'good'); play('heal'); return; }
     if (fx.type === 'heal') { const c = this.tankCenter(fx.id); if (c) this.floater(c.x, c.y - 10, '+1', 'good'); play('heal'); return; }
     if (fx.type === 'hit' || fx.type === 'kill') {
       this.aim(fx.from, fx.to);
@@ -214,6 +222,12 @@ export class Board {
     const c = this.center(x, y);
     if (kind === 'pickup') { this.floater(c.x, c.y - 10, '+♥', 'good'); play('heart'); }
   }
+}
+
+// One entry per tank, merged with its owner's callsign/color/team so the board
+// can treat every tank the same way. Tank ids are what the server acts on.
+export function flatTanks(st) {
+  return st.players.flatMap(p => p.tanks.map(t => ({ ...t, ownerId: p.id, callsign: p.callsign, colorHex: p.colorHex, team: p.team, isOwn: p.isOwn })));
 }
 
 const TEAM_COLORS = ['#3f7fc1', '#e85d5d', '#4fa05c', '#e0a233', '#8b6bc7', '#2f9e8f'];
