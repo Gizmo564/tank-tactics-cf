@@ -50,6 +50,34 @@ export function setupSettings() {
   A.onAudioChange(() => { const ae = document.activeElement; if (open && !(ae && ae.type === 'range' && panel.contains(ae))) draw(); });
 
   btn.addEventListener('click', e => { e.stopPropagation(); setOpen(!open); });
+
+  // The gear is one page-level button, but it should sit inside whichever top bar is on screen,
+  // centred on the brand row. Measure the bar and place the gear (and its panel) exactly.
+  let raf = 0;
+  const place = () => {
+    raf = 0;
+    const bar = document.querySelector('#app .topbar');
+    if (!bar) { for (const e of [btn, panel]) { e.style.top = ''; e.style.left = ''; e.style.right = ''; } return; }
+    const r = bar.getBoundingClientRect();
+    const size = btn.offsetWidth || 40;
+    // Centred on the bar vertically, with the same gap to the right edge as to the top/bottom (when the bar is one row).
+    const gap = Math.max(6, Math.min(12, (r.height - 6 - size) / 2));
+    btn.style.right = 'auto'; btn.style.top = Math.round(r.top + scrollY + (r.height - size) / 2) + 'px';
+    btn.style.left = Math.round(r.right + scrollX - size - 3 - gap) + 'px';
+    panel.style.right = 'auto'; panel.style.bottom = 'auto';
+    panel.style.top = Math.round(r.bottom + scrollY + 6) + 'px';
+    panel.style.left = Math.max(8, Math.round(r.right + scrollX - panel.offsetWidth)) + 'px';
+  };
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(place); };
+  window.addEventListener('resize', schedule);
+  const app = document.getElementById('app');
+  if (app) {
+    new MutationObserver(schedule).observe(app, { childList: true });
+    if (window.ResizeObserver) new ResizeObserver(schedule).observe(app);
+  }
+  new MutationObserver(schedule).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
+  schedule();
   // composedPath is captured at click time, so clicking an element the panel then redraws still counts as "inside"
   document.addEventListener('click', e => { const path = e.composedPath(); if (open && !path.includes(panel) && !path.includes(btn)) setOpen(false); });
   document.addEventListener('keydown', e => { if (open && e.key === 'Escape') { setOpen(false); btn.focus(); } });

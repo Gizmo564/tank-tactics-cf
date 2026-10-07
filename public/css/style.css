@@ -735,3 +735,27 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
   .theme-toggle-btn { top: calc(12px + 10px); right: calc(10px + 11px); width: 38px; height: 38px; }
   .theme-panel { top: calc(12px + 58px + 6px); right: 10px; }
 }
+
+/* Theme options in the settings panel: full bordered buttons like the rest */
+.sp-themes { gap: 8px; padding: 2px 2px 4px 0; }
+.sp-themes .theme-option { border: 2px solid var(--ink); border-radius: 10px; background: var(--paper); color: var(--ink); padding: 7px 10px; font: 600 13px 'Space Grotesk', sans-serif; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.sp-themes .theme-option.active { background: var(--accent-2); color: var(--ink-on-light); transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+.sp-themes .theme-option:hover:not(.active) { background: var(--paper); }
+
+/* ---------- Phones: side panels become tabs ---------- */
+.mob-tabs { display: none; }
+@media (max-width: 860px) {
+  .mob-tabs { display: flex; gap: 8px; order: 2; margin: 14px 0 12px; position: sticky; top: 0; z-index: 5; padding: 4px 4px 6px 0; background: var(--cream); }
+  .mob-tab { position: relative; flex: 1; border: 2px solid var(--ink); border-radius: 10px; background: var(--paper); color: var(--ink);
+    padding: 9px 6px; font: 700 14px 'Space Grotesk', sans-serif; box-shadow: 3px 3px 0 var(--ink); cursor: pointer; transition: transform .08s ease, box-shadow .08s ease, background .12s; }
+  .mob-tab.active { background: var(--accent-2); color: var(--ink-on-light); transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+  .tab-dot { position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--ink); }
+  .game-layout[data-tab="tank"] [data-tab]:not([data-tab="tank"]),
+  .game-layout[data-tab="chat"] [data-tab]:not([data-tab="chat"]),
+  .game-layout[data-tab="log"] [data-tab]:not([data-tab="log"]),
+  .game-layout[data-tab="host"] [data-tab]:not([data-tab="host"]) { display: none; }
+  .game-layout .log-card { order: 3; margin-top: 0; }
+}
+
+/* Desktop game: the bar ends where the side panels end (they leave 8px of room for their scrollbar). */
+@media (min-width: 861px) { html.in-game .topbar { margin-right: 8px; } }

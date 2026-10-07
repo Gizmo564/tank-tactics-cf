@@ -48,7 +48,7 @@ const gid = () => S.currentGameId;
 
 async function render() {
   G = { st: null, v: -1, board: null, sock: null, poll: null, mode: null, chat: [], chatIds: new Set(), chatSince: 0,
-    sigs: {}, sel: null, zoom: 1, names: lsGet('tt_names', '1') === '1', live: false,
+    sigs: {}, sel: null, tab: 'tank', unread: false, zoom: 1, names: lsGet('tt_names', '1') === '1', live: false,
     groupForm: false, groupSel: new Set(), busy: false, replay: null };
   const r = await api(`/api/games/${gid()}/state`);
   if (!r.ok) { toast(r.error || 'Game not found', 'bad'); return setView('lobby'); }
@@ -112,14 +112,15 @@ function buildShell() {
           <button type="button" id="zoomFitBtn" title="Fit to screen" aria-label="Fit to screen">${ICONS.expand(14)}</button>
         </div>
         <div class="board-wrap" id="boardWrap"><div id="boardMount" class="board-mount"></div></div>
-        <div class="card mt-16 log-card"><div class="panel-title">Battle log</div><div id="logNote"></div><div class="log-feed" id="logFeed"></div></div>
+        <div class="card mt-16 log-card" data-tab="log"><div class="panel-title">Battle log</div><div id="logNote"></div><div class="log-feed" id="logFeed"></div></div>
       </div>
       <div class="col-side">
-        <div id="statsMount"></div>
-        <div id="actionsMount"></div>
-        <div id="targetMount"></div>
-        <div id="chatMount"></div>
-        <div id="hostMount"></div>
+        <div class="mob-tabs" id="mobTabs" role="tablist" aria-label="Game panels"></div>
+        <div id="statsMount" data-tab="tank"></div>
+        <div id="actionsMount" data-tab="tank"></div>
+        <div id="targetMount" data-tab="tank"></div>
+        <div id="chatMount" data-tab="chat"></div>
+        <div id="hostMount" data-tab="host"></div>
       </div>
     </div>`;
   G.board = new Board(document.getElementById('boardMount'), { onCell, onTank });
@@ -151,6 +152,9 @@ function buildShell() {
   document.getElementById('boardWrap').addEventListener('wheel', e => {
     if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); setZoom(G.zoom + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
   }, { passive: false });
+  document.getElementById('mobTabs').addEventListener('click', e => {
+    const b = e.target.closest('[data-tabbtn]'); if (b) setTab(b.dataset.tabbtn);
+  });
   document.getElementById('statsMount').addEventListener('click', e => {
     const b = e.target.closest('[data-sel]'); if (b) select(G.sel === b.dataset.sel ? null : b.dataset.sel);
   });
@@ -207,7 +211,29 @@ function applyState(st, v) {
   if (G.mode && (!m || st.status !== 'active' || (G.mode === 'vote') !== m.isDead || (G.mode !== 'vote' && !effSel()))) G.mode = null;
   refreshBoard();
   if (first) { restoreZoom(); maybeShowHowTo(st); }
-  renderStats(); renderActions(); renderTarget(); renderLog(); renderChatShell(); renderHost();
+  renderStats(); renderActions(); renderTarget(); renderLog(); renderChatShell(); renderHost(); renderTabs();
+}
+
+// ---------- phone tabs: one panel group at a time (desktop shows everything in the scrolling side column) ----------
+function tabList() {
+  const st = G.st, cfg = st.config, m = me(), t = [['tank', m ? 'Tank' : 'Info']];
+  if (cfg.chatBroadcastEnabled || cfg.chatWhisperEnabled) t.push(['chat', 'Chat']);
+  t.push(['log', 'Log']);
+  if (st.isHost && st.status === 'active') t.push(['host', 'Host']);
+  return t;
+}
+function renderTabs() {
+  const bar = document.getElementById('mobTabs'), layout = document.querySelector('.game-layout'); if (!bar || !layout) return;
+  const tabs = tabList();
+  if (!tabs.some(([id]) => id === G.tab)) G.tab = 'tank';
+  layout.dataset.tab = G.tab;
+  const html = tabs.map(([id, label]) => `<button type="button" role="tab" class="mob-tab${id === G.tab ? ' active' : ''}" data-tabbtn="${id}" aria-selected="${id === G.tab}">${label}${id === 'chat' && G.unread && G.tab !== 'chat' ? '<i class="tab-dot" aria-label="new messages"></i>' : ''}</button>`).join('');
+  if (html !== G.sigs.tabs) { bar.innerHTML = html; G.sigs.tabs = html; }
+}
+function setTab(id) {
+  G.tab = id; if (id === 'chat') G.unread = false;
+  renderTabs();
+  if (id === 'chat') { const f = document.getElementById('chatFeed'); if (f) f.scrollTop = f.scrollHeight; }
 }
 // A zoom the player chose is remembered per board size and never overridden; only a first visit auto-fits.
 function restoreZoom() {
@@ -446,7 +472,7 @@ function addChat(m, batch) {
   const id = m.id || `${m.timestamp}|${m.fromId}|${m.text}`;
   if (G.chatIds.has(id)) return;
   G.chatIds.add(id); G.chat.push(m); if (G.chat.length > 150) G.chat.shift();
-  if (!batch) drawChat(true);
+  if (!batch) { drawChat(true); const mm = me(); if (G.tab !== 'chat' && !(mm && m.fromId === mm.id)) { G.unread = true; renderTabs(); } }
 }
 function chatMsgHtml(m) {
   if (m.groupId) return `<div class="chat-msg whisper"><b>[${esc(m.groupName)}] ${esc(m.fromCallsign)}:</b>${esc(m.text)}</div>`;
