@@ -382,8 +382,11 @@ export function getGameState(db, requestingUserId) {
       if (fogActive && !isSelf && t.x !== null && !watchers.some(w => getDistance(w, t) <= w.range)) { x = null; y = null; fogHidCount++; }
       return { id: t.id, x, y, hearts: t.hearts, range: t.range, isDead: t.isDead };
     });
+    // x/y/hearts/range mirror the first tank so a page still open from before multi-tank keeps drawing a board.
+    const first = tanks[0];
     return { id: p.id, callsign: p.callsign, colorId: p.colorId, colorHex: p.colorHex, team: p.team || null,
-      kills: p.kills || 0, isDead: p.isDead, ap: isSelf ? p.ap : null, isOwn: isSelf, tanks };
+      kills: p.kills || 0, isDead: p.isDead, ap: isSelf ? p.ap : null, isOwn: isSelf, tanks,
+      x: first.x, y: first.y, hearts: first.hearts, range: first.range };
   });
   const today = dayKey();
   const voteCount = {};

@@ -688,7 +688,6 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 .tank-g.faded { opacity: .55; }
 .tank-g.dead { opacity: 1; }
 .tank-g .own-ring.sel { stroke-width: 4.5; stroke-dasharray: none; }
-.tank-g.selected .tank-inner { filter: drop-shadow(0 0 3px var(--accent)); }
 .sel-hint { font-size: 12px; font-weight: 700; color: var(--accent-text); margin: 2px 0 0; text-align: center; }
 .sel-hint[hidden] { display: none; }
 .tank-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
