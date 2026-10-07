@@ -63,33 +63,18 @@ export function formatCountdown(targetTs) {
 setInterval(() => document.querySelectorAll('.countdown[data-target]').forEach(el => { el.textContent = formatCountdown(parseInt(el.dataset.target, 10)); }), 1000);
 
 // ---------- themes (button + panel are static markup in index.html) ----------
-const THEMES = [
+export const THEMES = [
   { id: 'sunrise', label: 'Sunrise', swatch: '#ff6b4a' }, { id: 'dusk', label: 'Dusk', swatch: '#ff7ab6' },
   { id: 'forest', label: 'Forest', swatch: '#3f8f4f' }, { id: 'ocean', label: 'Ocean', swatch: '#2596be' },
   { id: 'blush', label: 'Blush', swatch: '#e0507e' }
 ];
-const savedTheme = () => { try { return localStorage.getItem('tt_theme') || 'sunrise'; } catch { return 'sunrise'; } };
-function applyTheme(id) {
+export const savedTheme = () => { try { return localStorage.getItem('tt_theme') || 'sunrise'; } catch { return 'sunrise'; } };
+export function applyTheme(id) {
   document.documentElement.setAttribute('data-theme', id);
   try { localStorage.setItem('tt_theme', id); } catch { /* private mode: just won't persist */ }
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--cream').trim() || '#faf3e6');
 }
-export function setupThemeToggle() {
-  const btn = document.getElementById('themeToggleBtn'), panel = document.getElementById('themePanel');
-  if (!btn || !panel) return;
-  btn.innerHTML = ICONS.palette(18);
-  const draw = () => {
-    const cur = savedTheme();
-    panel.innerHTML = THEMES.map(t => `<button type="button" class="theme-option ${t.id === cur ? 'active' : ''}" data-theme-id="${t.id}"><span class="swatch-dot" style="background:${t.swatch}"></span>${esc(t.label)}</button>`).join('');
-    panel.querySelectorAll('[data-theme-id]').forEach(b => b.onclick = () => { applyTheme(b.dataset.themeId); draw(); panel.classList.add('hidden'); });
-  };
-  draw();
-  btn.onclick = e => { e.stopPropagation(); panel.classList.toggle('hidden'); };
-  document.addEventListener('click', e => { if (!panel.classList.contains('hidden') && !panel.contains(e.target) && e.target !== btn) panel.classList.add('hidden'); });
-  applyTheme(savedTheme());
-}
-
 // ---------- view router ----------
 const views = {};
 let current = null;

@@ -1,8 +1,12 @@
-import { S, api, setView, setupThemeToggle } from './core.js';
+import { S, api, setView, applyTheme, savedTheme } from './core.js';
+import { setupSettings } from './settings.js';
+import { initAudio } from './sfx.js';
 import './views/auth.js'; import './views/lobby.js'; import './views/wizard.js'; import './views/setup.js';
 import './views/waiting.js'; import './views/game.js'; import './views/admin.js';
 
-setupThemeToggle();
+applyTheme(savedTheme());
+setupSettings();
+initAudio();
 (async function boot() {
   const r = await api('/api/auth/me');
   if (!r.ok || !r.loggedIn) return setView('auth');

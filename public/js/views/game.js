@@ -5,7 +5,7 @@
 import { $app, S, api, esc, toast, setView, registerView, logLine, heartRow, countdownMarkup, connectGameSocket } from '../core.js';
 import { ICONS } from '../icons.js';
 import { Board } from '../board.js';
-import { soundOn, setSound } from '../sfx.js';
+import { play } from '../sfx.js';
 
 const ZOOM_MIN = 0.15, ZOOM_MAX = 2.5, ZOOM_STEP = 0.15;
 const DIRS = { '0,-1': 'up', '0,1': 'down', '-1,0': 'left', '1,0': 'right', '-1,-1': 'upleft', '1,-1': 'upright', '-1,1': 'downleft', '1,1': 'downright' };
@@ -76,7 +76,6 @@ function buildShell() {
         <div id="fogHint"></div>
         <div class="board-toolbar">
           <button type="button" id="namesBtn" title="Toggle names" aria-label="Toggle names" aria-pressed="${G.names}">${ICONS.tag(14)}</button>
-          <button type="button" id="soundBtn" title="Toggle sound" aria-label="Toggle sound" aria-pressed="${soundOn()}">${soundOn() ? ICONS.volume(14) : ICONS.volumeOff(14)}</button>
           <span class="tb-sep"></span>
           <button type="button" id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">−</button>
           <span class="zoom-label" id="zoomLabel"></span>
@@ -100,9 +99,6 @@ function buildShell() {
   document.getElementById('backBtn').onclick = () => setView('lobby');
   document.getElementById('namesBtn').onclick = e => {
     G.names = !G.names; lsSet('tt_names', G.names ? '1' : '0'); G.board.setNames(G.names); e.currentTarget.setAttribute('aria-pressed', G.names);
-  };
-  document.getElementById('soundBtn').onclick = e => {
-    setSound(!soundOn()); e.currentTarget.innerHTML = soundOn() ? ICONS.volume(14) : ICONS.volumeOff(14); e.currentTarget.setAttribute('aria-pressed', soundOn());
   };
   document.getElementById('zoomOutBtn').onclick = () => setZoom(G.zoom - ZOOM_STEP);
   document.getElementById('zoomInBtn').onclick = () => setZoom(G.zoom + ZOOM_STEP);
@@ -163,8 +159,9 @@ function fitZoom() {
 // ---------- applying state ----------
 function applyState(st, v) {
   if (v != null) { if (v < G.v) return; G.v = v; }
-  const first = !G.st;
+  const first = !G.st, wasActive = G.st && G.st.status === 'active';
   G.st = st;
+  if (wasActive && st.status === 'ended') play('victory');
   const m = me();
   document.getElementById('gName').textContent = st.name;
   document.getElementById('gSub').textContent = st.status === 'active' ? (m ? 'Battle in progress' : 'Spectating') : 'Game over';

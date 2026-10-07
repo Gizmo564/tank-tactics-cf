@@ -582,4 +582,29 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
   html.in-game .col-side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 8px 14px 2px; scrollbar-width: thin; }
 }
 @media (max-width: 860px) { .board-wrap { max-height: 62vh; } }
-@media (min-width: 861px) { html.in-game .theme-toggle-btn { right: auto; left: 18px; } html.in-game .theme-panel { right: auto; left: 18px; } }
+@media (min-width: 861px) { html.in-game .theme-toggle-btn { right: auto; left: 18px; } html.in-game .theme-panel { right: auto; left: 18px; transform-origin: bottom left; } }
+
+/* ===== Settings panel (gear button) — unrolls upward from the button ===== */
+.theme-toggle-btn { transition: transform .2s ease, background .2s; }
+.theme-toggle-btn.active { background: var(--accent-2); color: var(--ink-on-light); }
+.theme-toggle-btn.active svg { transform: rotate(60deg); }
+.theme-toggle-btn svg { transition: transform .35s ease; }
+.theme-panel {
+  display: grid; grid-template-rows: 0fr; padding: 0; width: 270px; overflow: hidden;
+  opacity: 0; visibility: hidden; transform-origin: bottom right; transform: scale(.96);
+  transition: grid-template-rows .28s ease, opacity .2s ease, transform .28s ease, visibility 0s linear .28s;
+}
+.theme-panel.open { grid-template-rows: 1fr; opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+.theme-panel .sp-inner { min-height: 0; overflow: hidden; padding: 0 14px; }
+.theme-panel.open .sp-inner { padding: 12px 14px 8px; overflow-y: auto; max-height: 75vh; }
+.sp-title { font: 700 11px 'Space Grotesk', sans-serif; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin: 10px 0 6px; }
+.sp-title:first-child { margin-top: 0; }
+.sp-themes { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.sp-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; font-size: 13px; font-weight: 600; }
+.sp-row input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.sp-note { font-size: 11.5px; color: var(--ink-soft); margin: 2px 0 4px; line-height: 1.35; overflow-wrap: anywhere; }
+.switch { position: relative; width: 44px; height: 24px; border-radius: 999px; border: 2px solid var(--ink); background: var(--cream-2); padding: 0; flex: none; transition: background .2s; }
+.switch i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); transition: transform .2s; }
+.switch.on { background: var(--good); }
+.switch.on i { transform: translateX(20px); background: #fff; }
+@media (max-width: 640px) { .theme-panel { right: 12px; bottom: 60px; width: min(270px, calc(100vw - 24px)); } }
