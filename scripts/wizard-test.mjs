@@ -1,0 +1,14 @@
+import { chromium } from 'playwright-core';
+const BASE='http://127.0.0.1:8787'; const sfx=Math.random().toString(36).slice(2,6);
+const r=await fetch(BASE+'/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:'wz'+sfx,password:'pw1234'})});
+const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'}); const p=await (await b.newContext({viewport:{width:1280,height:900}})).newPage();
+await p.goto(BASE); await p.waitForSelector('#authForm'); await p.fill('#authUser','wz'+sfx); await p.fill('#authPass','pw1234'); await p.click('#authSubmit');
+await p.waitForSelector('.game-row, .btn.primary'); await p.click('text=Create'); await p.waitForSelector('#f_apPerDay');
+const tops=()=>p.$$eval('#f_apPerDay, #f_apIntervalHours, #f_apGrantWindowHours, #f_apSchedule',e=>e.map(x=>Math.round(x.getBoundingClientRect().top)));
+const before=await tops();
+await p.fill('#f_tanksPerPlayer','2'); await p.dispatchEvent('#f_tanksPerPlayer','input');
+await p.waitForTimeout(200);
+const after=await tops(); const hint=await p.$eval('#apHint',e=>[e.hidden,e.textContent]);
+console.log('before',before,'after',after,'hint',hint, JSON.stringify(before)===JSON.stringify(after)?'ALIGNED':'MOVED');
+await p.locator('#apHint').scrollIntoViewIfNeeded(); await p.screenshot({path:'shots/wizard-hint.png'});
+await b.close();

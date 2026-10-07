@@ -16,7 +16,7 @@ export function gameRow(g, isMine) {
     <div class="game-row">
       <div>
         <div class="game-title">${esc(g.name)} <span class="small-muted">#${esc(g.code)}</span>${g.visibility === 'unlisted' ? ' <span class="tag">join code only</span>' : ''}</div>
-        <div class="game-meta">Hosted by ${esc(g.hostUsername)} · ${g.playerCount}/${g.maxPlayers} tanks${g.status !== 'lobby' ? ` · ${g.aliveCount} still standing` : ''}</div>
+        <div class="game-meta">Hosted by ${esc(g.hostUsername)} · ${g.playerCount}/${g.maxPlayers} players${g.status !== 'lobby' ? ` · ${g.aliveCount} still standing` : ''}</div>
         ${g.status === 'active' ? `<div class="game-meta">Next AP grant: ${countdownMarkup(g.nextAPGrant)}</div>` : ''}
       </div>
       <span class="badge ${g.status}">${statusLabel}</span>
@@ -44,7 +44,12 @@ async function render() {
     <div class="section-head"><h2>Your games</h2></div>
     <div id="myGameList"></div>
     <div class="section-head"><h2>Open games</h2><button class="btn sm ghost icon-btn" id="refreshBtn">${ICONS.refresh(14)} Refresh</button></div>
-    <div id="gameList"></div>`;
+    <div id="gameList"></div>
+    <details class="archive" id="archive" hidden>
+      <summary><span class="arch-title">Archived games</span><span class="arch-count" id="archiveCount"></span></summary>
+      <p class="small-muted">Finished games. You can still open one to see how it ended.</p>
+      <div id="archiveList"></div>
+    </details>`;
   document.getElementById('logoutBtn').onclick = async () => { await api('/api/auth/logout', 'POST'); S.me = null; setView('auth'); };
   document.getElementById('refreshBtn').onclick = load;
   document.getElementById('createGameBtn').onclick = () => setView('wizard');
@@ -67,7 +72,13 @@ async function load() {
   const list = res.ok ? res.games : [];
   const $my = document.getElementById('myGameList'), $open = document.getElementById('gameList');
   if (!$my || !$open) return;
-  const mine = list.filter(g => g.isMember), open = list.filter(g => !g.isMember);
+  // Finished games move out of the main lists into the collapsible archive (its open/closed state survives refreshes).
+  const ended = list.filter(g => g.status === 'ended'), live = list.filter(g => g.status !== 'ended');
+  const mine = live.filter(g => g.isMember), open = live.filter(g => !g.isMember);
+  const $arch = document.getElementById('archive');
+  $arch.hidden = ended.length === 0;
+  document.getElementById('archiveCount').textContent = ended.length ? ` (${ended.length})` : '';
+  document.getElementById('archiveList').innerHTML = ended.map(g => gameRow(g, g.isMember)).join('');
   $my.innerHTML = mine.length ? mine.map(g => gameRow(g, true)).join('')
     : `<div class="empty-state card"><p class="small-muted">You're not in any games yet — join one below or create your own.</p></div>`;
   $open.innerHTML = open.length ? open.map(g => gameRow(g, false)).join('')

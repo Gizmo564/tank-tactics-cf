@@ -21,7 +21,7 @@ async function renderDashboard() {
     <div class="section-head"><h2>All games</h2><button class="btn sm ghost icon-btn" id="refreshBtn">${ICONS.refresh(14)} Refresh</button></div>
     <div id="gameList">${list.length === 0 ? `<div class="empty-state card">${ICONS.shield(40)}<p>No games have been created yet.</p></div>` : list.map(g => `
       <div class="game-row">
-        <div><div class="game-title">${esc(g.name)} <span class="small-muted">#${esc(g.code)}</span></div><div class="game-meta">Hosted by ${esc(g.hostUsername)} · ${g.playerCount}/${g.maxPlayers} tanks</div></div>
+        <div><div class="game-title">${esc(g.name)} <span class="small-muted">#${esc(g.code)}</span></div><div class="game-meta">Hosted by ${esc(g.hostUsername)} · ${g.playerCount}/${g.maxPlayers} players</div></div>
         <span class="badge ${g.status}">${statusLabel(g.status)}</span><span class="small-muted">${g.playerCount}/${g.maxPlayers}</span>
         <span class="gap-8"><button class="btn sm" data-spectate="${g.id}">Watch</button><button class="btn primary sm" data-manage="${g.id}">Manage</button></span>
       </div>`).join('')}</div>`;
