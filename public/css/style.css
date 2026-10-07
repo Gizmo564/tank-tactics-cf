@@ -641,3 +641,23 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 .dpad .center { background: var(--accent); color: #fff; border: 2px solid var(--ink); border-radius: 10px; box-shadow: inset 0 -3px 0 rgba(0,0,0,.18); }
 .dpad button:disabled { opacity: .4; box-shadow: none; }
 .dpad button:disabled:hover { background: var(--paper); }
+
+/* ---------- Unified cartoon drop-shadow buttons: shadow lifts away on hover ---------- */
+.btn, .btn.sm, .btn.ghost, .tabs button, .board-toolbar button, .dpad button, .theme-toggle-btn, .sp-themes button, .target-row button {
+  box-shadow: 3px 3px 0 var(--ink);
+  transform: none;
+  transition: transform .08s ease, box-shadow .08s ease, background .12s;
+}
+.btn.ghost { box-shadow: 3px 3px 0 var(--ink-soft); }
+.btn:hover:not(:disabled), .tabs button:hover:not(:disabled), .board-toolbar button:hover:not(:disabled),
+.dpad button:hover:not(:disabled), .theme-toggle-btn:hover, .sp-themes button:hover, .target-row button:hover:not(:disabled) {
+  transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink);
+}
+.btn:active:not(:disabled), .dpad button:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: none; }
+.btn:disabled, .dpad button:disabled { transform: none; box-shadow: 3px 3px 0 var(--ink); opacity: .45; }
+/* in-game logo / pad tanks */
+.brand .mark { padding: 0; overflow: visible; }
+.brand .mark svg, .brand .mark .tank-art { width: 32px; height: 32px; color: inherit; }
+.dpad .center { background: var(--cream-2); box-shadow: none; padding: 0; }
+.dpad .center .tank-art { width: 100%; height: 100%; }
+.btn .tank-art { width: 20px; height: 20px; }
