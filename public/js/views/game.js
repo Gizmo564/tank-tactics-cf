@@ -20,10 +20,11 @@ const gid = () => S.currentGameId;
 
 async function render() {
   G = { st: null, v: -1, board: null, sock: null, poll: null, mode: null, chat: [], chatIds: new Set(), chatSince: 0,
-    sigs: {}, zoom: parseFloat(lsGet('tt_zoom', '1')) || 1, names: lsGet('tt_names', '1') === '1', live: false,
+    sigs: {}, zoom: 1, names: lsGet('tt_names', '1') === '1', live: false,
     groupForm: false, groupSel: new Set(), busy: false, replay: null };
   const r = await api(`/api/games/${gid()}/state`);
   if (!r.ok) { toast(r.error || 'Game not found', 'bad'); return setView('lobby'); }
+  try { history.replaceState(null, '', `#game/${gid()}`); } catch { /* non-critical */ }  // a reload returns here, not to the lobby
   buildShell();
   applyState(r.state, null);
   loadChat();
@@ -42,6 +43,7 @@ async function render() {
 }
 function leave() {
   if (!G) return;
+  try { history.replaceState(null, '', location.pathname); } catch { /* ignore */ }
   if (G.sock) G.sock.close();
   clearInterval(G.poll);
   document.removeEventListener('visibilitychange', onVisible);
@@ -121,9 +123,10 @@ function setLive() {
 }
 
 // ---------- zoom ----------
+const zoomKey = () => G.st ? `tt_zoom_${G.st.config.gridWidth}x${G.st.config.gridHeight}` : null;
 function setZoom(z, silent) {
   G.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100));
-  lsSet('tt_zoom', String(G.zoom));
+  if (zoomKey()) lsSet(zoomKey(), String(G.zoom));
   G.board.setZoom(G.zoom);
   const l = document.getElementById('zoomLabel'); if (l) l.textContent = Math.round(G.zoom * 100) + '%';
 }
@@ -148,10 +151,15 @@ function applyState(st, v) {
     ? `<p class="hint mb-8">${ICONS.eye(13)} Fog of war is on — you only see tanks within your range (${st.fogHidCount} hidden right now).</p>` : '';
   if (G.mode && (!m || m.isDead || st.status !== 'active')) G.mode = null;
   G.board.update(st, { actionMode: G.mode });
-  if (first) fitIfLarge();
+  if (first) restoreZoom();
   renderStats(); renderActions(); renderTarget(); renderLog(); renderChatShell(); renderHost();
 }
-function fitIfLarge() { if (G.st.config.gridWidth * G.board.cellPx * G.zoom > document.getElementById('boardWrap').clientWidth) fitZoom(); }
+// A zoom the player chose is remembered per board size and never overridden; only a first visit auto-fits.
+function restoreZoom() {
+  const saved = parseFloat(lsGet(zoomKey(), ''));
+  if (saved) return setZoom(saved);
+  fitZoom();
+}
 
 function renderStats() {
   const st = G.st, m = me(), cfg = st.config, el = document.getElementById('statsMount');
@@ -169,7 +177,8 @@ function renderStats() {
     : `<div class="card"><p class="small-muted">You're spectating this game.</p>
       <div class="stat-row"><span class="label">Tanks alive</span><span class="val">${st.players.filter(p => !p.isDead).length} / ${st.players.length}</span></div>
       ${st.status === 'active' ? `<div class="stat-row"><span class="label">${ICONS.clock(13)} Next AP grant</span><span class="val">${countdownMarkup(st.nextAPGrant)}</span></div>` : ''}</div>`;
-  if (html !== G.sigs.stats) { el.innerHTML = html; G.sigs.stats = html; }
+  const key = html.replace(/(class="countdown"[^>]*>)[^<]*/g, '$1'); // ticking text must not force a redraw
+  if (key !== G.sigs.stats) { el.innerHTML = html; G.sigs.stats = key; }
 }
 
 function renderActions() {

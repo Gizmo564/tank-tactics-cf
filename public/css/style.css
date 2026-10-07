@@ -483,7 +483,7 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 .board-toolbar button { font-size: 16px; line-height: 1; color: var(--ink); }
 
 /* SVG board */
-.board-wrap { padding: 10px; }
+.board-wrap { padding: 10px; overscroll-behavior: auto; }
 .board-mount { width: fit-content; margin: 0 auto; }
 .board-svg { display: block; border-radius: 8px; background: var(--cream); border: 2px solid var(--ink); touch-action: manipulation; max-width: none; }
 .board-svg .cell { fill: var(--cream); stroke: var(--board-line); stroke-width: 1; cursor: default; }
@@ -494,13 +494,13 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 .board-svg .fog-cell { fill: color-mix(in srgb, var(--ink) 55%, transparent); }
 .board-svg .fx-layer { pointer-events: none; }
 .pickup { pointer-events: none; }
-.pickup-bob { animation: bob 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.pickup-bob { animation: bob 1.6s ease-in-out infinite; transform-origin: 32px 32px; }
 @keyframes bob { 50% { transform: translateY(-3px) scale(1.06); } }
 .pickup-heart { fill: var(--bad); stroke: var(--ink); stroke-width: 2.5; }
 
 .tank-g { cursor: pointer; transition: transform .28s cubic-bezier(.3,.7,.3,1); will-change: transform; }
 .tank-g .turret { transition: transform .22s ease; }
-.tank-g.spawn .tank-inner { animation: spawn .35s ease-out; transform-box: fill-box; transform-origin: center; }
+.tank-g.spawn .tank-inner { animation: spawn .35s ease-out; transform-origin: 32px 37px; }
 @keyframes spawn { from { transform: scale(.3); opacity: 0; } }
 .tank-g .t-shadow { fill: var(--ink); opacity: .18; }
 .tank-g .t-body, .tank-g .t-tread, .tank-g .t-barrel, .tank-g .t-cap { stroke: var(--ink); }
@@ -508,25 +508,25 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 .tank-g .t-eye { stroke: var(--ink); stroke-width: 1.5; }
 .tank-g .t-x { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; fill: none; }
 .tank-g.dead { cursor: default; opacity: .8; }
-.tank-g .own-ring { fill: none; stroke: var(--accent); stroke-width: 3; stroke-dasharray: 7 5; animation: ring-spin 6s linear infinite; transform-box: fill-box; transform-origin: center; }
-@keyframes ring-spin { to { transform: rotate(360deg); } }
+.tank-g .own-ring { fill: none; stroke: var(--accent); stroke-width: 3; stroke-dasharray: 8 6; stroke-linecap: round; } /* spun by SMIL in board.js, around its own centre */
+.tank-g .heart-pill { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
 .tank-g .pip { fill: var(--bad); stroke: var(--ink); stroke-width: 6; paint-order: stroke; }
-.tank-g .pip-n { font: 700 9px 'Space Grotesk', sans-serif; fill: var(--ink); }
+.tank-g .pip-n { font: 800 12px 'Space Grotesk', sans-serif; fill: var(--ink); }
 .tank-g .team-dot { stroke: var(--ink); stroke-width: 2; }
 .tank-g .name-tag rect { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; opacity: .92; }
 .tank-g .name-tag text { font: 700 8px 'Space Grotesk', sans-serif; fill: var(--ink); }
 .board-svg.no-names .name-tag { display: none; }
-.tank-g.shake .tank-inner { animation: shake .35s; transform-box: fill-box; transform-origin: center; }
+.tank-g.shake .tank-inner { animation: shake .35s; transform-origin: 32px 37px; }
 @keyframes shake { 20% { transform: translate(-3px, 1px) } 40% { transform: translate(3px, -1px) } 60% { transform: translate(-2px, 0) } 80% { transform: translate(2px, 0) } }
 
 .tracer { stroke: var(--accent-2); stroke-width: 5; stroke-linecap: round; animation: tracer .25s ease-out forwards; }
 @keyframes tracer { from { opacity: 1; stroke-width: 7; } to { opacity: 0; stroke-width: 1; } }
-.muzzle { fill: var(--accent-2); animation: fade-grow .25s ease-out forwards; transform-box: fill-box; transform-origin: center; }
-.burst { fill: var(--accent); stroke: var(--ink); stroke-width: 2; animation: fade-grow .4s ease-out forwards; transform-box: fill-box; transform-origin: center; }
+.muzzle { fill: var(--accent-2); animation: fade-grow .25s ease-out forwards; }
+.burst { fill: var(--accent); stroke: var(--ink); stroke-width: 2; animation: fade-grow .4s ease-out forwards; }
 @keyframes fade-grow { from { opacity: 1; transform: scale(.4); } to { opacity: 0; transform: scale(2.2); } }
 .spark { fill: var(--accent-2); animation: spark .5s ease-out forwards; }
 @keyframes spark { to { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
-.ring { fill: none; stroke: var(--bad); stroke-width: 4; animation: ring .7s ease-out forwards; transform-box: fill-box; transform-origin: center; }
+.ring { fill: none; stroke: var(--bad); stroke-width: 4; animation: ring .7s ease-out forwards; }
 @keyframes ring { from { opacity: 1; transform: scale(.3); } to { opacity: 0; transform: scale(4); } }
 .floater { font: 700 18px 'Space Grotesk', sans-serif; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; animation: floater 1s ease-out forwards; }
 .floater.good { fill: var(--good); } .floater.bad { fill: var(--bad); }
@@ -542,7 +542,6 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 .chat-feed { min-height: 60px; }
 .game-layout .col-main, .game-layout .col-side { min-width: 0; }
 .col-side > div > .card:first-child { margin-top: 0; }
-@media (min-width: 861px) { .col-side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; padding: 0 4px 8px 0; } }
 .victory-banner { animation: spawn .5s ease-out; }
 
 @media (max-width: 860px) {

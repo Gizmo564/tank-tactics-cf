@@ -24,6 +24,7 @@ export class Board {
     this.pickups = new Map();          // "x,y" -> g
     this.w = 0; this.h = 0; this.zoom = 1; this.cellPx = 52; this.showNames = true;
     this.lastPos = new Map();
+    this.ready = false;
   }
 
   build(w, h) {
@@ -46,7 +47,7 @@ export class Board {
       if (c && this.onCell) this.onCell(+c.dataset.x, +c.dataset.y);
     });
     this.mount.appendChild(svg);
-    this.tanks.clear(); this.pickups.clear(); this.lastPos.clear();
+    this.tanks.clear(); this.pickups.clear(); this.lastPos.clear(); this.ready = false;
     this.applySize();
   }
 
@@ -68,6 +69,7 @@ export class Board {
     this.syncTanks(st);
     this.syncRange(st, me, opts.actionMode);
     this.syncFog(st, me);
+    this.ready = true;
   }
 
   center(x, y) { return { x: x * U + U / 2, y: y * U + U / 2 }; }
@@ -99,7 +101,7 @@ export class Board {
         const g = el('g', { class: 'tank-g', 'data-tank': p.id }, this.gTanks);
         t = { g, x: p.x, y: p.y, angle: 0, sig: '', hearts: p.hearts };
         g.style.transform = `translate(${p.x * U}px, ${p.y * U}px)`;
-        g.classList.add('spawn');
+        if (this.ready) { g.classList.add('spawn'); setTimeout(() => g.classList.remove('spawn'), 600); }
         this.tanks.set(p.id, t);
       }
       if (t.x !== p.x || t.y !== p.y) {                      // moved: face the direction of travel
@@ -117,27 +119,28 @@ export class Board {
   }
 
   paintTank(t, p) {
-    const hearts = p.isDead ? '' : this.heartsMarkup(p.hearts);
     const name = (p.callsign || '').slice(0, 9);
     t.g.classList.toggle('dead', !!p.isDead);
     t.g.classList.toggle('own', !!p.isOwn);
+    // The art's own centre is (30,30). It is drawn at 85% and centred on (32,37) so the heart pill fits above it.
     t.g.innerHTML = `
       <title>${esc(p.callsign)}${p.team ? ` (Team ${p.team})` : ''} — ${p.isDead ? 'down' : p.hearts + ' hearts'}</title>
       <g class="tank-inner">
-        ${p.isOwn && !p.isDead ? '<rect class="own-ring" x="4" y="4" width="56" height="56" rx="14"/>' : ''}
-        ${tankMarkup({ colorHex: p.colorHex, dead: p.isDead, angle: Math.round(t.angle), own: p.isOwn })}
-        ${hearts}
-        ${p.team ? `<circle class="team-dot" cx="52" cy="14" r="5" fill="${TEAM_COLORS[(p.team - 1) % TEAM_COLORS.length]}"/>` : ''}
+        ${p.isOwn && !p.isDead ? '<circle class="own-ring" cx="32" cy="37" r="25"><animateTransform attributeName="transform" type="rotate" from="0 32 37" to="360 32 37" dur="9s" repeatCount="indefinite"/></circle>' : ''}
+        <g transform="translate(32 37) scale(.85) translate(-30 -30)">${tankMarkup({ colorHex: p.colorHex, dead: p.isDead, angle: Math.round(t.angle), own: p.isOwn })}</g>
+        ${p.team ? `<circle class="team-dot" cx="54" cy="20" r="5" fill="${TEAM_COLORS[(p.team - 1) % TEAM_COLORS.length]}"/>` : ''}
       </g>
+      ${p.isDead ? '' : this.heartsMarkup(p.hearts)}
       <g class="name-tag"><rect x="${32 - name.length * 3.4 - 3}" y="52" width="${name.length * 6.8 + 6}" height="11" rx="5.5"/><text x="32" y="60.5" text-anchor="middle">${esc(name)}</text></g>`;
   }
+  // Hearts sit in a pill above the tank: up to 4 hearts, then one heart and a count.
   heartsMarkup(n) {
     if (n <= 0) return '';
-    const shown = Math.min(n, 5), over = n > 5;
-    const step = 9, total = shown * step, x0 = 32 - total / 2;
-    let out = '';
-    for (let i = 0; i < shown; i++) out += `<path class="pip" d="${HEART}" transform="translate(${x0 + i * step - 1} -1) scale(.15)"/>`;
-    if (over) out += `<text class="pip-n" x="${x0 + total + 3}" y="8">${n}</text>`;
+    const many = n > 4, shown = many ? 1 : n, step = 14, hw = 12.5;
+    const w = many ? 38 : shown * step + 5, x0 = 32 - w / 2;
+    let out = `<rect class="heart-pill" x="${x0}" y="0.75" width="${w}" height="15" rx="7.5"/>`;
+    for (let i = 0; i < shown; i++) out += `<path class="pip" d="${HEART}" transform="translate(${x0 + 3 + i * step - 1} 2.4) scale(${hw / 60})"/>`;
+    if (many) out += `<text class="pip-n" x="${x0 + 20}" y="12.5">${n}</text>`;
     return `<g class="pips">${out}</g>`;
   }
   // choose the equivalent angle closest to the current one so turrets take the short way round
@@ -176,7 +179,7 @@ export class Board {
       play('shoot'); setTimeout(() => play(fx.type === 'kill' ? 'kill' : 'hit'), 120);
       if (!a || !b || reduceMotion()) return;
       const line = el('line', { class: 'tracer', x1: a.x, y1: a.y, x2: b.x, y2: b.y }, this.gFx);
-      el('circle', { class: 'muzzle', cx: a.x, cy: a.y, r: 12 }, this.gFx).addEventListener('animationend', e => e.target.remove());
+      const mz = el('circle', { class: 'muzzle', cx: a.x, cy: a.y, r: 12 }, this.gFx); mz.style.transformOrigin = `${a.x}px ${a.y}px`; mz.addEventListener('animationend', () => mz.remove());
       line.addEventListener('animationend', () => line.remove());
       setTimeout(() => {
         if (fx.type === 'kill') this.explosion(b.x, b.y); else this.burst(b.x, b.y);
@@ -186,7 +189,7 @@ export class Board {
     }
   }
   burst(x, y) {
-    const c = el('circle', { class: 'burst', cx: x, cy: y, r: 8 }, this.gFx); c.addEventListener('animationend', () => c.remove());
+    const c = el('circle', { class: 'burst', cx: x, cy: y, r: 8 }, this.gFx); c.style.transformOrigin = `${x}px ${y}px`; c.addEventListener('animationend', () => c.remove());
     for (let i = 0; i < 6; i++) {
       const s = el('circle', { class: 'spark', cx: x, cy: y, r: 3 }, this.gFx);
       const a = (Math.PI * 2 * i) / 6 + Math.random() * 0.5;
@@ -197,7 +200,7 @@ export class Board {
   explosion(x, y) {
     for (let i = 0; i < 3; i++) {
       const c = el('circle', { class: 'ring', cx: x, cy: y, r: 10 }, this.gFx);
-      c.style.animationDelay = `${i * 90}ms`; c.addEventListener('animationend', () => c.remove());
+      c.style.transformOrigin = `${x}px ${y}px`; c.style.animationDelay = `${i * 90}ms`; c.addEventListener('animationend', () => c.remove());
     }
     this.burst(x, y);
   }
