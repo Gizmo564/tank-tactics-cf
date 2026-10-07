@@ -73,7 +73,7 @@ async function refetch() {
 function buildShell() {
   $app.innerHTML = `
     <div class="topbar">
-      <div class="brand"><div class="mark">${ICONS.target(20)}</div><div class="brand-text"><span id="gName"></span><small id="gSub"></small></div></div>
+      <div class="brand"><div class="mark">${ICONS.tank(22)}</div><div class="brand-text"><span id="gName"></span><small id="gSub"></small></div></div>
       <div class="gap-8" style="align-items:center;">
         <span class="live-pill off" id="livePill" role="status"><i></i><span>Connecting…</span></span>
         <button class="btn sm ghost" id="backBtn">All games</button>

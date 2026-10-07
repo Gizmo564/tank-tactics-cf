@@ -26,7 +26,7 @@ function draw() {
   const r = lobby, canStart = r.isHost && r.players.length >= 2;
   $app.innerHTML = `
     <div class="topbar">
-      <div class="brand"><div class="mark">${ICONS.target(20)}</div><div class="brand-text">${esc(r.name)}<small>Waiting room</small></div></div>
+      <div class="brand"><div class="mark">${ICONS.tank(22)}</div><div class="brand-text">${esc(r.name)}<small>Waiting room</small></div></div>
       <div class="gap-8">
         <button class="btn sm ghost icon-btn" id="backArrowBtn">${ICONS.chevron('left', 14)} All games</button>
         <button class="btn sm bad" id="leaveBtn">Leave game</button>
@@ -40,7 +40,7 @@ function draw() {
         </div>
         <div style="text-align:right;">
           <div class="small-muted">${r.players.length}/${r.maxPlayers} tanks joined</div>
-          ${r.isHost ? `<button class="btn primary mt-10 icon-btn" id="startBtn" ${canStart ? '' : 'disabled'}>${ICONS.target(16)} Start Game</button>` : '<div class="small-muted mt-10">Waiting for the host to start…</div>'}
+          ${r.isHost ? `<button class="btn primary mt-10 icon-btn" id="startBtn" ${canStart ? '' : 'disabled'}>${ICONS.tank(16)} Start Game</button>` : '<div class="small-muted mt-10">Waiting for the host to start…</div>'}
         </div>
       </div>
       ${r.isHost && !canStart ? '<p class="hint">Need at least 2 tanks to start.</p>' : ''}
