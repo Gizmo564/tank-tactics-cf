@@ -15,7 +15,8 @@ const el = (name, attrs = {}, parent) => {
   return e;
 };
 const HEART = 'M32 52S12 40 6 28C2 19 8 9 18 9c6 0 11 3 14 8 3-5 8-8 14-8 10 0 16 10 12 19-6 12-26 24-26 24z';
-const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+// Rounded range shape (same rule as src/engine.js inRange): dx² + dy² <= range² + range.
+export const inRange = (a, b, range) => { const dx = a.x - b.x, dy = a.y - b.y; return dx * dx + dy * dy <= range * range + range; };
 
 export class Board {
   constructor(mount, { onCell, onTank } = {}) {
@@ -157,14 +158,14 @@ export class Board {
     this.gRange.innerHTML = '';
     if (!me || me.x === null || !mode || !['shoot', 'gift-hearts', 'gift-ap'].includes(mode)) return;
     for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
-      if (cheb(me, { x, y }) <= me.range) el('rect', { class: 'range-cell', x: x * U + 1, y: y * U + 1, width: U - 2, height: U - 2, rx: 6 }, this.gRange);
+      if (inRange(me, { x, y }, me.range)) el('rect', { class: 'range-cell', x: x * U + 1, y: y * U + 1, width: U - 2, height: U - 2, rx: 6 }, this.gRange);
     }
   }
   syncFog(st, mine) {
     this.gFog.innerHTML = '';
     if (!st.fogActive || !mine.length) return;
     for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
-      if (!mine.some(w => cheb(w, { x, y }) <= w.range)) el('rect', { class: 'fog-cell', x: x * U, y: y * U, width: U, height: U }, this.gFog);
+      if (!mine.some(w => inRange(w, { x, y }, w.range))) el('rect', { class: 'fog-cell', x: x * U, y: y * U, width: U, height: U }, this.gFog);
     }
   }
 

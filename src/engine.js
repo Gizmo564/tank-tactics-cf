@@ -20,6 +20,13 @@ export function log(db, message, type = 'info', actorId = null) {
 }
 
 export function getDistance(a, b) { return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)); }
+// Range is a rounded shape, not a square: a tile is in range when dx² + dy² <= range² + range.
+// Straight lines reach `range` tiles, and only the far corners of the square are cut off
+// (range 1 is the full 3x3; range 2 is the 5x5 minus its 4 corners). Same rule is in public/js/board.js.
+export function inRange(a, b, range) {
+  const dx = a.x - b.x, dy = a.y - b.y;
+  return dx * dx + dy * dy <= range * range + range;
+}
 const byUser = (db, userId) => db.players.find(p => p.userId === userId);
 const byId = (db, id) => db.players.find(p => p.id === id);
 const requireActive = db => (db.meta.status !== 'active' ? 'The game is not currently active' : null);
@@ -116,8 +123,7 @@ export function shootPlayer(db, userId, tankId, targetTankId) {
     return fail(`Cannot shoot your own team (Team ${attacker.team})`);
   }
   if (attacker.ap < cfg.shootCost) return fail(`Not enough AP (need ${cfg.shootCost})`);
-  const dist = getDistance(from, target);
-  if (dist > from.range) return fail(`Out of range (your range: ${from.range}, distance: ${dist})`);
+  if (!inRange(from, target, from.range)) return fail(`Out of range (your range: ${from.range}, distance: ${getDistance(from, target)})`);
 
   attacker.ap -= cfg.shootCost;
   const damage = cfg.shootDamage || 1;
@@ -223,8 +229,7 @@ export function sendGift(db, userId, fromTankId, targetTankId, type, amount) {
   if (from.isDead) return fail('Fallen tanks cannot send gifts');
   if (from.id === target.id) return fail('Pick a different tank');
   if (cfg.giftingRequiresRange !== false) {
-    const dist = getDistance(from, target);
-    if (dist > from.range) return fail(`Out of range (your range: ${from.range}, distance: ${dist})`);
+    if (!inRange(from, target, from.range)) return fail(`Out of range (your range: ${from.range}, distance: ${getDistance(from, target)})`);
   }
   if (target.isDead && type !== 'hearts') return fail('Can only send hearts to fallen tanks');
   amount = parseInt(amount);
@@ -379,7 +384,7 @@ export function getGameState(db, requestingUserId) {
     const isSelf = p.userId === requestingUserId;
     const tanks = p.tanks.map(t => {
       let x = t.x, y = t.y;
-      if (fogActive && !isSelf && t.x !== null && !watchers.some(w => getDistance(w, t) <= w.range)) { x = null; y = null; fogHidCount++; }
+      if (fogActive && !isSelf && t.x !== null && !watchers.some(w => inRange(w, t, w.range))) { x = null; y = null; fogHidCount++; }
       return { id: t.id, x, y, hearts: t.hearts, range: t.range, isDead: t.isDead };
     });
     // x/y/hearts/range mirror the first tank so a page still open from before multi-tank keeps drawing a board.

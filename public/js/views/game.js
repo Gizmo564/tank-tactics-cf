@@ -5,7 +5,7 @@
 import { $app, S, api, esc, toast, setView, registerView, logLine, heartRow, countdownMarkup, connectGameSocket } from '../core.js';
 import { ICONS } from '../icons.js';
 import { tankIcon } from '../tanks.js';
-import { Board, flatTanks } from '../board.js';
+import { Board, flatTanks, inRange } from '../board.js';
 import { play } from '../sfx.js';
 import { showHowTo, maybeShowHowTo } from '../howto.js';
 
@@ -378,7 +378,7 @@ function onCell(x, y) {
   const t = effSel(); if (!t) return;
   const dist = Math.max(Math.abs(x - t.x), Math.abs(y - t.y));
   if (dist === 1) return doMove(DIRS[`${Math.sign(x - t.x)},${Math.sign(y - t.y)}`]);
-  if (explicitSel() && dist > t.range) select(null);   // clicking empty ground out of range lets go of the tank
+  if (explicitSel() && !inRange(t, { x, y }, t.range)) select(null);   // clicking empty ground out of range lets go of the tank
 }
 function onKey(e) {
   if (!G || e.ctrlKey || e.metaKey || e.altKey) return;

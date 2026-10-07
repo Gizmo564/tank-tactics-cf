@@ -326,3 +326,13 @@ test('admin: set hearts per tank; downing the last one takes the player out', ()
   A.setHearts(db, a.tanks[0].id, 0); assert.equal(a.isDead, true);
   assert.equal(A.getDetail(db, []).players[0].tanks.length, 2);
 });
+
+test('inRange: rounded shape (r1 3x3, r2 21 tiles, r3 37 tiles)', () => {
+  const count = r => { let n = 0; for (let dx = -6; dx <= 6; dx++) for (let dy = -6; dy <= 6; dy++) if (E.inRange({ x: 0, y: 0 }, { x: dx, y: dy }, r)) n++; return n; };
+  assert.equal(count(1), 9);
+  assert.equal(count(2), 21);
+  assert.equal(count(3), 37);
+  assert.ok(E.inRange({ x: 0, y: 0 }, { x: 2, y: 1 }, 2));
+  assert.ok(E.inRange({ x: 0, y: 0 }, { x: 0, y: -2 }, 2));
+  assert.ok(!E.inRange({ x: 0, y: 0 }, { x: 2, y: 2 }, 2));
+});
