@@ -661,3 +661,24 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 .dpad .center { background: var(--cream-2); box-shadow: none; padding: 0; }
 .dpad .center .tank-art { width: 100%; height: 100%; }
 .btn .tank-art { width: 20px; height: 20px; }
+
+/* ---------- Polish: inputs, ghost buttons, disabled = greyed + flattened ---------- */
+.chat-input-row input, .field input, .field select {
+  border: 3px solid var(--ink); border-radius: 10px; background: var(--paper); color: var(--ink);
+  font-family: inherit; padding: 8px 12px; min-width: 0; transition: box-shadow .1s ease, border-color .1s ease;
+}
+.chat-input-row input { font-size: 14px; border-width: 2px; }
+.chat-input-row input::placeholder { color: var(--ink-soft); opacity: .8; }
+.chat-input-row input:focus, .field input:focus, .field select:focus {
+  outline: none; border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent);
+}
+.field input, .field select { padding: 11px 12px; }
+/* ghost buttons are normal (not greyed) — only disabled ones look greyed */
+.btn.ghost { background: var(--paper); color: var(--ink); border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.btn.ghost:hover:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+/* disabled: greyed out and pushed flat into the page */
+.btn:disabled, .dpad button:disabled, .board-toolbar button:disabled {
+  opacity: 1; background: var(--cream-2); color: var(--ink-soft); border-color: var(--ink-soft);
+  filter: grayscale(1); box-shadow: none; transform: translate(3px, 3px); cursor: not-allowed;
+}
+.btn:disabled:hover, .dpad button:disabled:hover { background: var(--cream-2); transform: translate(3px, 3px); box-shadow: none; }
