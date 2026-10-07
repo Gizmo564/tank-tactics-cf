@@ -4,7 +4,7 @@
 // mounts — so nothing is ever torn out from under the player mid-click.
 import { $app, S, api, esc, toast, setView, registerView, logLine, heartRow, countdownMarkup, connectGameSocket } from '../core.js';
 import { ICONS } from '../icons.js';
-import { tankSvg } from '../tanks.js';
+import { tankIcon } from '../tanks.js';
 import { Board } from '../board.js';
 import { play } from '../sfx.js';
 import { showHowTo, maybeShowHowTo } from '../howto.js';
@@ -74,7 +74,7 @@ async function refetch() {
 function buildShell() {
   $app.innerHTML = `
     <div class="topbar">
-      <div class="brand"><div class="mark">${tankSvg("#2f9e8f", 32)}</div><div class="brand-text"><span id="gName"></span><small id="gSub"></small></div></div>
+      <div class="brand"><div class="mark">${tankIcon("#2f9e8f", 32)}</div><div class="brand-text"><span id="gName"></span><small id="gSub"></small></div></div>
       <div class="gap-8" style="align-items:center;">
         <span class="live-pill off" id="livePill" role="status"><i></i><span>Connecting…</span></span>
         <button class="btn sm ghost" id="backBtn">All games</button>
@@ -228,7 +228,7 @@ function renderActions() {
         <div class="panel-title">Move (${cfg.moveCost} AP)</div>
         <div class="dpad">
           <button data-dir="upleft" aria-label="Up-left">${ICONS.chevron('upleft', 16)}</button><button data-dir="up" aria-label="Up">${ICONS.chevron('up', 16)}</button><button data-dir="upright" aria-label="Up-right">${ICONS.chevron('upright', 16)}</button>
-          <button data-dir="left" aria-label="Left">${ICONS.chevron('left', 16)}</button><div class="center">${tankSvg(m.colorHex, 32)}</div><button data-dir="right" aria-label="Right">${ICONS.chevron('right', 16)}</button>
+          <button data-dir="left" aria-label="Left">${ICONS.chevron('left', 16)}</button><div class="center">${tankIcon(m.colorHex, 32)}</div><button data-dir="right" aria-label="Right">${ICONS.chevron('right', 16)}</button>
           <button data-dir="downleft" aria-label="Down-left">${ICONS.chevron('downleft', 16)}</button><button data-dir="down" aria-label="Down">${ICONS.chevron('down', 16)}</button><button data-dir="downright" aria-label="Down-right">${ICONS.chevron('downright', 16)}</button>
         </div>
         <p class="hint kbd-hint">Tip: click a tile next to you, or use arrow keys / WASD (Q E Z C for diagonals).</p>

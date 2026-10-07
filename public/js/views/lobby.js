@@ -1,6 +1,6 @@
 import { $app, S, api, esc, toast, setView, registerView, countdownMarkup } from '../core.js';
 import { ICONS } from '../icons.js';
-import { tankSvg } from '../tanks.js';
+import { tankIcon } from '../tanks.js';
 
 let refreshTimer = null, onVis = null;
 
@@ -28,7 +28,7 @@ export function gameRow(g, isMine) {
 async function render() {
   $app.innerHTML = `
     <div class="topbar">
-      <div class="brand"><div class="mark">${tankSvg("#2f9e8f", 32)}</div><div class="brand-text">Tank Tactics Arena<small>Turn-based tank warfare</small></div></div>
+      <div class="brand"><div class="mark">${tankIcon("#2f9e8f", 32)}</div><div class="brand-text">Tank Tactics Arena<small>Turn-based tank warfare</small></div></div>
       <div class="who"><span>Playing as <b>${esc(S.me.username)}</b></span><button class="btn sm ghost" id="logoutBtn">Log out</button></div>
     </div>
     <div class="card">
@@ -71,7 +71,7 @@ async function load() {
   $my.innerHTML = mine.length ? mine.map(g => gameRow(g, true)).join('')
     : `<div class="empty-state card"><p class="small-muted">You're not in any games yet — join one below or create your own.</p></div>`;
   $open.innerHTML = open.length ? open.map(g => gameRow(g, false)).join('')
-    : `<div class="empty-state card">${tankSvg("#2f9e8f", 56)}<p>${mine.length ? 'No other open games right now.' : 'No games yet. Start the first one above!'}</p></div>`;
+    : `<div class="empty-state card">${tankIcon("#2f9e8f", 56)}<p>${mine.length ? 'No other open games right now.' : 'No games yet. Start the first one above!'}</p></div>`;
   document.querySelectorAll('[data-join]').forEach(b => b.onclick = () => { S.pendingGame = { gameId: b.dataset.join }; setView('setup'); });
   document.querySelectorAll('[data-watch]').forEach(b => b.onclick = () => { S.currentGameId = b.dataset.watch; setView('game'); });
   document.querySelectorAll('[data-enter-lobby]').forEach(b => b.onclick = () => { S.currentGameId = b.dataset.enterLobby; setView('waiting'); });

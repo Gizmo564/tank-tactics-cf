@@ -33,3 +33,9 @@ export function tankMarkup({ colorHex, dead = false, angle = 0, own = false }) {
 export function tankSvg(colorHex, size = 64, angle = 0) {
   return `<svg class="tank-art" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true">${tankMarkup({ colorHex, angle })}</svg>`;
 }
+
+// Small icon version: the tank's body is centred at (30,30) in its 64x64 cell,
+// so shift the viewBox to put that point in the middle of the box.
+export function tankIcon(colorHex, size = 24) {
+  return `<svg class="tank-art" width="${size}" height="${size}" viewBox="-2 -2 64 64" aria-hidden="true">${tankMarkup({ colorHex })}</svg>`;
+}
