@@ -560,3 +560,26 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
+
+/* ===== Game screen on desktop: the map is a fixed window (scaled to fit, drag/scroll to pan);
+   only the side panel scrolls, so the map never leaves the screen. ===== */
+.board-wrap.panning { cursor: grabbing; user-select: none; }
+.board-wrap { cursor: grab; }
+.board-wrap .tank-g, .board-wrap .cell { cursor: pointer; }
+@media (min-width: 861px) {
+  html.in-game, html.in-game body { height: 100%; overflow: hidden; }
+  html.in-game #app { height: 100vh; height: 100dvh; max-width: 1500px; display: flex; flex-direction: column; padding: 14px 16px 14px; }
+  html.in-game .topbar { flex: none; margin-bottom: 12px; }
+  html.in-game #victory { flex: none; }
+  html.in-game .game-layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 330px; align-items: stretch; }
+  html.in-game .col-main { display: flex; flex-direction: column; min-height: 0; }
+  html.in-game .board-toolbar { flex: none; }
+  html.in-game #fogHint { flex: none; }
+  html.in-game .board-wrap { flex: 1 1 auto; min-height: 0; max-height: none; display: flex; overflow: auto; }
+  html.in-game .board-mount { margin: auto; flex: none; }
+  html.in-game .log-card { flex: none; margin-top: 12px; padding: 12px 16px; }
+  html.in-game .log-card .log-feed { max-height: 84px; }
+  html.in-game .col-side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 8px 14px 2px; scrollbar-width: thin; }
+}
+@media (max-width: 860px) { .board-wrap { max-height: 62vh; } }
+@media (min-width: 861px) { html.in-game .theme-toggle-btn { right: auto; left: 18px; } html.in-game .theme-panel { right: auto; left: 18px; } }

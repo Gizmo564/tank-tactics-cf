@@ -18,7 +18,7 @@ async function refresh() {
   apply(r);
 }
 function apply(r) {
-  if (!r || r.id !== S.currentGameId) return;
+  if (S.view !== 'waiting' || !r || r.id !== S.currentGameId) return;   // ignore late replies after leaving
   if (r.status === 'active' || r.status === 'ended') return setView('game');
   lobby = r; draw();
 }

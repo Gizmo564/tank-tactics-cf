@@ -128,7 +128,7 @@ export function connectGameSocket(gameId, handlers) {
       else if (m.type === 'fx') handlers.onFx && handlers.onFx(m.fx);
       else if (m.type === 'chat') handlers.onChat && handlers.onChat(m.message);
     };
-    ws.onclose = () => { clearInterval(pingTimer); handlers.onStatus && handlers.onStatus(false); schedule(); };
+    ws.onclose = () => { clearInterval(pingTimer); if (closed) return; handlers.onStatus && handlers.onStatus(false); schedule(); };
     ws.onerror = () => { try { ws.close(); } catch { /* ignore */ } };
   };
   const schedule = () => { if (closed) return; clearTimeout(timer); timer = setTimeout(open, Math.min(10000, 500 * 2 ** tries++)); };

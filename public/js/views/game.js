@@ -7,7 +7,7 @@ import { ICONS } from '../icons.js';
 import { Board } from '../board.js';
 import { soundOn, setSound } from '../sfx.js';
 
-const ZOOM_MIN = 0.4, ZOOM_MAX = 2, ZOOM_STEP = 0.15;
+const ZOOM_MIN = 0.15, ZOOM_MAX = 2.5, ZOOM_STEP = 0.15;
 const DIRS = { '0,-1': 'up', '0,1': 'down', '-1,0': 'left', '1,0': 'right', '-1,-1': 'upleft', '1,-1': 'upright', '-1,1': 'downleft', '1,1': 'downright' };
 const KEYS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', q: 'upleft', e: 'upright', z: 'downleft', c: 'downright' };
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } };
@@ -25,6 +25,7 @@ async function render() {
   const r = await api(`/api/games/${gid()}/state`);
   if (!r.ok) { toast(r.error || 'Game not found', 'bad'); return setView('lobby'); }
   try { history.replaceState(null, '', `#game/${gid()}`); } catch { /* non-critical */ }  // a reload returns here, not to the lobby
+  document.documentElement.classList.add('in-game');
   buildShell();
   applyState(r.state, null);
   loadChat();
@@ -42,7 +43,9 @@ async function render() {
   document.addEventListener('keydown', onKey);
 }
 function leave() {
+  document.documentElement.classList.remove('in-game');
   if (!G) return;
+  if (G.ro) G.ro.disconnect();
   try { history.replaceState(null, '', location.pathname); } catch { /* ignore */ }
   if (G.sock) G.sock.close();
   clearInterval(G.poll);
@@ -93,7 +96,7 @@ function buildShell() {
     </div>`;
   G.board = new Board(document.getElementById('boardMount'), { onCell, onTank });
   G.board.setNames(G.names);
-  setZoom(G.zoom, true);
+  G.autoFit = true; setZoom(G.zoom, true);
   document.getElementById('backBtn').onclick = () => setView('lobby');
   document.getElementById('namesBtn').onclick = e => {
     G.names = !G.names; lsSet('tt_names', G.names ? '1' : '0'); G.board.setNames(G.names); e.currentTarget.setAttribute('aria-pressed', G.names);
@@ -104,6 +107,21 @@ function buildShell() {
   document.getElementById('zoomOutBtn').onclick = () => setZoom(G.zoom - ZOOM_STEP);
   document.getElementById('zoomInBtn').onclick = () => setZoom(G.zoom + ZOOM_STEP);
   document.getElementById('zoomFitBtn').onclick = fitZoom;
+  const wrap = document.getElementById('boardWrap');
+  // Re-fit whenever the map window changes size (window resize, banners appearing), unless the player picked a zoom.
+  G.ro = new ResizeObserver(() => { if (G.autoFit && G.st) fitZoom(); });
+  G.ro.observe(wrap);
+  // Drag to pan with the mouse (touch uses native scrolling). A drag must not count as a click on a tile.
+  let drag = null;
+  wrap.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' && e.button === 0) drag = { x: e.clientX, y: e.clientY, l: wrap.scrollLeft, t: wrap.scrollTop, moved: false }; });
+  window.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+    drag.moved = true; wrap.classList.add('panning'); wrap.scrollLeft = drag.l - dx; wrap.scrollTop = drag.t - dy;
+  });
+  window.addEventListener('pointerup', () => { if (drag && drag.moved) G.justPanned = true; drag = null; wrap.classList.remove('panning'); setTimeout(() => { if (G) G.justPanned = false; }, 0); });
+  wrap.addEventListener('click', e => { if (G.justPanned) { e.stopPropagation(); e.preventDefault(); } }, true);
   document.getElementById('boardWrap').addEventListener('wheel', e => {
     if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); setZoom(G.zoom + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
   }, { passive: false });
@@ -124,16 +142,22 @@ function setLive() {
 
 // ---------- zoom ----------
 const zoomKey = () => G.st ? `tt_zoom_${G.st.config.gridWidth}x${G.st.config.gridHeight}` : null;
-function setZoom(z, silent) {
+// auto=true means "scaled to fit the window" (remembered as 'fit'); a manual zoom is remembered as a number.
+function setZoom(z, auto) {
   G.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100));
-  if (zoomKey()) lsSet(zoomKey(), String(G.zoom));
+  G.autoFit = !!auto;
+  if (zoomKey()) lsSet(zoomKey(), auto ? 'fit' : String(G.zoom));
   G.board.setZoom(G.zoom);
   const l = document.getElementById('zoomLabel'); if (l) l.textContent = Math.round(G.zoom * 100) + '%';
 }
 function fitZoom() {
   const wrap = document.getElementById('boardWrap'); if (!wrap || !G.st) return;
-  const c = G.st.config, availW = wrap.clientWidth - 28, availH = Math.max(280, window.innerHeight * 0.68);
-  setZoom(Math.min(availW / (c.gridWidth * G.board.cellPx), availH / (c.gridHeight * G.board.cellPx), 1.6));
+  const c = G.st.config, desktop = window.matchMedia('(min-width: 861px)').matches;
+  // 26px = wrap padding (20) + the board's own border (4) + a little slack, so no scrollbars appear at "fit".
+  const availW = wrap.clientWidth - 26, availH = (desktop ? wrap.clientHeight : window.innerHeight * 0.6) - 26;
+  const z = Math.max(ZOOM_MIN, Math.min(availW / (c.gridWidth * G.board.cellPx), availH / (c.gridHeight * G.board.cellPx), 2));
+  if (G.autoFit && Math.abs(z - G.zoom) < 0.005) return;
+  setZoom(z, true);
 }
 
 // ---------- applying state ----------
@@ -157,8 +181,8 @@ function applyState(st, v) {
 // A zoom the player chose is remembered per board size and never overridden; only a first visit auto-fits.
 function restoreZoom() {
   const saved = parseFloat(lsGet(zoomKey(), ''));
-  if (saved) return setZoom(saved);
-  fitZoom();
+  if (saved) return setZoom(saved, false);
+  G.autoFit = true; fitZoom();
 }
 
 function renderStats() {
