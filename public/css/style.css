@@ -774,8 +774,11 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 .return-link {
   display: inline-block; font-family: 'Fredoka', 'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px; line-height: 1.5;
   background: #FFEFA8; color: #3d2b4f; border: 3px solid #3d2b4f; border-radius: 18px; padding: 2px 16px;
-  text-decoration: none; transform: rotate(-1.5deg); transition: transform .15s ease;
+  text-decoration: none; transform: rotate(-1.5deg);
+  box-shadow: 4px 4px 0 #3d2b4f;   /* tank-tactics offset size, landing-page purple */
+  transition: transform .15s ease, box-shadow .15s ease;
 }
-.return-link:hover { transform: rotate(0deg) translateY(-2px); }
+.return-link:hover { transform: rotate(0deg) translate(-2px, -2px); box-shadow: 6px 6px 0 #3d2b4f; }
+.return-link:active { transform: rotate(0deg) translate(-1px, -1px); box-shadow: 5px 5px 0 #3d2b4f; }
 .return-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 html.in-game .return-row { display: none; }
