@@ -5,7 +5,7 @@
   "compatibility_date": "2026-09-01",
   // Lets this Worker call the landing Worker (same domain) over the public internet: the Nap Guard check and the usage counts.
   "compatibility_flags": ["global_fetch_strictly_public"],
-  "vars": { "STATS_URL": "https://0801564.xyz/api/event" },
+  "vars": { "STATS_URL": "https://0801564.xyz/api/event", "LEGACY_PLAYER_LOGIN": "off" },
   "routes": [{ "pattern": "tanks.0801564.xyz", "custom_domain": true }],
   "assets": {
     "directory": "./public",

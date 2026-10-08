@@ -17,7 +17,7 @@ async function render() {
         <a class="btn primary block" id="ssoBtn" href="#">Sign in with 0801564.xyz</a>
         <p class="small-muted" style="margin:10px 0 0;">One account for every game on 0801564.xyz. New here? You can create one on that page too.</p>
       </div>
-      <details class="card" id="legacyBox" style="text-align:left;margin-top:12px;">
+      <details class="card" id="legacyBox"${legacyPlayers ? '' : ' hidden'} style="text-align:left;margin-top:12px;">
         <summary class="small-muted" style="cursor:pointer;">Admin sign-in${legacyPlayers ? ' / old Tank Tactics login' : ''}</summary>
         <p style="margin:10px 0 0;"><a href="https://0801564.xyz/api/admin/handoff?to=tanks">Admin? Continue from the 0801564.xyz admin</a></p>
         <form id="authForm" novalidate style="margin-top:10px;">

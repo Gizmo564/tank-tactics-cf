@@ -31,7 +31,7 @@ async function render() {
     ${returnLinkHtml()}
     <div class="topbar">
       <div class="brand"><div class="mark">${tankIcon("#2f9e8f", 32)}</div><div class="brand-text">Tank Tactics Arena<small>Turn-based tank warfare</small></div></div>
-      <div class="who"><span>Playing as <b>${esc(S.me.username)}</b></span><button class="btn sm ghost" id="logoutBtn">Log out</button></div>
+      <div class="who"><a class="btn sm" id="adminBtn" hidden href="https://0801564.xyz/api/admin/handoff?to=tanks">Admin</a><span>Playing as <b>${esc(S.me.username)}</b></span><button class="btn sm ghost" id="logoutBtn">Log out</button></div>
     </div>
     <div class="card">
       <div class="flex-between">
@@ -53,6 +53,8 @@ async function render() {
       <div id="archiveList"></div>
     </details>`;
   document.getElementById('logoutBtn').onclick = async () => { await api('/api/auth/logout', 'POST'); S.me = null; setView('auth'); };
+  // Show the Admin button only for admin accounts. This is just a convenience: the admin console itself is guarded by the 0801564.xyz admin step.
+  fetch('https://0801564.xyz/api/me', { credentials: 'include' }).then(r => r.json()).then(d => { if (d && d.admin) document.getElementById('adminBtn')?.removeAttribute('hidden'); }).catch(() => {});
   document.getElementById('refreshBtn').onclick = load;
   document.getElementById('createGameBtn').onclick = () => setView('wizard');
   document.getElementById('joinForm').onsubmit = async e => {
