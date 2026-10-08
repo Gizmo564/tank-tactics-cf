@@ -38,8 +38,8 @@ async function hmacKey(secret) {
 export const SESSION_MAX_AGE_S = 30 * 24 * 3600;
 
 // payload: { sub, name, admin? }
-export async function signSession(payload, secret, now = Date.now()) {
-  const body = b64u.enc(enc.encode(JSON.stringify({ ...payload, exp: now + SESSION_MAX_AGE_S * 1000 })));
+export async function signSession(payload, secret, now = Date.now(), ttlS = SESSION_MAX_AGE_S) {
+  const body = b64u.enc(enc.encode(JSON.stringify({ ...payload, exp: now + ttlS * 1000 })));
   const sig = new Uint8Array(await crypto.subtle.sign('HMAC', await hmacKey(secret), enc.encode(body)));
   return `${body}.${b64u.enc(sig)}`;
 }
@@ -61,9 +61,9 @@ export function readCookie(req, name = COOKIE) {
   const m = (req.headers.get('Cookie') || '').split(/;\s*/).find(c => c.startsWith(name + '='));
   return m ? decodeURIComponent(m.slice(name.length + 1)) : null;
 }
-export function sessionCookie(token, url) {
+export function sessionCookie(token, url, maxAge = SESSION_MAX_AGE_S) {
   const secure = new URL(url).protocol === 'https:' ? '; Secure' : '';
-  return `${COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_S}${secure}`;
+  return `${COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 export function clearCookie(url) {
   const secure = new URL(url).protocol === 'https:' ? '; Secure' : '';
@@ -76,6 +76,17 @@ export function clearSsoCookie(url) {
   const u = new URL(url), secure = u.protocol === 'https:' ? '; Secure' : '';
   const domain = u.hostname === '0801564.xyz' || u.hostname.endsWith('.0801564.xyz') ? '; Domain=.0801564.xyz' : '';
   return `${SSO_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${domain}${secure}`;
+}
+// One-time code from the 0801564.xyz admin (60 s, bound to 'tanks'); same format as the landing Worker's signHandoff.
+export async function verifyHandoff(token, secret, aud, now = Date.now()) {
+  if (!token || !secret) return null;
+  const [body, sig] = String(token).split('.');
+  if (!body || !sig) return null;
+  try {
+    if (!(await crypto.subtle.verify('HMAC', await hmacKey(secret + '|handoff|blob'), b64u.dec(sig), enc.encode(body)))) return null;
+    const p = JSON.parse(new TextDecoder().decode(b64u.dec(body)));
+    return p.exp > now && p.typ === 'handoff' && p.aud === aud && typeof p.jti === 'string' ? p : null;
+  } catch { return null; }
 }
 // Server-to-server calls to the landing Worker, signed with the shared secret.
 export async function signService(secret, ts, body) {

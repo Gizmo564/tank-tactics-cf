@@ -19,6 +19,7 @@ async function render() {
       </div>
       <details class="card" id="legacyBox" style="text-align:left;margin-top:12px;">
         <summary class="small-muted" style="cursor:pointer;">Admin sign-in${legacyPlayers ? ' / old Tank Tactics login' : ''}</summary>
+        <p style="margin:10px 0 0;"><a href="https://0801564.xyz/api/admin/handoff?to=tanks">Admin? Continue from the 0801564.xyz admin</a></p>
         <form id="authForm" novalidate style="margin-top:10px;">
           <div id="authError" aria-live="polite"></div>
           <div class="field"><label for="authUser">Callsign</label><input id="authUser" maxlength="20" autocomplete="username" autocapitalize="none"/></div>
