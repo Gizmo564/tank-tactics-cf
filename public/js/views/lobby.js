@@ -1,6 +1,7 @@
 import { $app, S, api, esc, toast, setView, registerView, countdownMarkup } from '../core.js';
 import { ICONS } from '../icons.js';
 import { tankIcon } from '../tanks.js';
+import { returnLinkHtml } from '../return-link.js';
 
 let refreshTimer = null, onVis = null;
 
@@ -27,6 +28,7 @@ export function gameRow(g, isMine) {
 
 async function render() {
   $app.innerHTML = `
+    ${returnLinkHtml()}
     <div class="topbar">
       <div class="brand"><div class="mark">${tankIcon("#2f9e8f", 32)}</div><div class="brand-text">Tank Tactics Arena<small>Turn-based tank warfare</small></div></div>
       <div class="who"><span>Playing as <b>${esc(S.me.username)}</b></span><button class="btn sm ghost" id="logoutBtn">Log out</button></div>

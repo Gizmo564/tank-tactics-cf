@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 /* ---------- Color themes ----------
    Each theme is just a swap of these custom properties, toggled by setting
@@ -767,3 +767,15 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 }
 .join-code-row input::placeholder { color: var(--ink-soft); opacity: .7; font-weight: 600; }
 .join-code-row input:focus { outline: none; border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
+
+/* "Return to 0801564.xyz" — same look as the landing page's title highlight */
+.return-row { margin: 0 0 14px; }
+.return-row.center { text-align: center; margin-bottom: 18px; }
+.return-link {
+  display: inline-block; font-family: 'Fredoka', 'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px; line-height: 1.5;
+  background: #FFEFA8; color: #3d2b4f; border: 3px solid #3d2b4f; border-radius: 18px; padding: 2px 16px;
+  text-decoration: none; transform: rotate(-1.5deg); transition: transform .15s ease;
+}
+.return-link:hover { transform: rotate(0deg) translateY(-2px); }
+.return-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+html.in-game .return-row { display: none; }

@@ -1,11 +1,13 @@
 import { $app, S, api, esc, setView, registerView } from '../core.js';
 import { ICONS } from '../icons.js';
 import { tankSvg } from '../tanks.js';
+import { returnLinkHtml } from '../return-link.js';
 
 let mode = 'login';
 function render() {
   $app.innerHTML = `
     <div class="auth-wrap">
+      ${returnLinkHtml('center')}
       <div class="hero-tanks" aria-hidden="true">${tankSvg('#2f9e8f', 64, 35)}${tankSvg('#ff6b5e', 80, 0)}${tankSvg('#e8a83c', 64, -35)}</div>
       <h1 style="font-size:30px;">Tank Tactics Arena</h1>
       <p class="small-muted" style="margin:8px 0 20px;">Grab a callsign, create or join a match, and start blasting.</p>
