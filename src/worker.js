@@ -41,15 +41,15 @@ export default {
 const SIGNIN = 'https://0801564.xyz/signin';
 // Who is this? The shared 0801564.xyz sign-in first (never an admin: that role is not in that cookie), then the old
 // Tank cookie, which only matters for the super admin and for players who signed in before the move.
-async function getSession(req, env) {
-  const legacy0 = await verifySession(readCookie(req), env.SESSION_SECRET);
-  if (legacy0 && legacy0.admin) return legacy0; // an admin who also has the shared player cookie is still the admin
+// The same person can be both: the player session is the default; the admin cookie (from the 0801564.xyz admin handoff,
+// 2 hours) is only used on /api/admin/* and when a request says it wants to act as admin (header x-tt-as, or ?as=admin on the socket).
+async function getSessions(req, env) {
+  const legacy = await verifySession(readCookie(req), env.SESSION_SECRET);
+  const admin = legacy && legacy.admin ? legacy : null;
   const sso = await verifySession(readCookie(req, SSO_COOKIE), env.SSO_SECRET);
-  if (sso && typeof sso.sub === 'string' && sso.sub) return { sub: sso.sub, name: sso.name, exp: sso.exp };
-  const legacy = legacy0;
-  if (!legacy) return null;
-  if (!legacy.admin && env.LEGACY_PLAYER_LOGIN === 'off') return null;
-  return legacy;
+  let player = sso && typeof sso.sub === 'string' && sso.sub ? { sub: sso.sub, name: sso.name, exp: sso.exp } : null;
+  if (!player && legacy && !legacy.admin && env.LEGACY_PLAYER_LOGIN !== 'off') player = legacy;
+  return { player, admin };
 }
 
 async function route(req, env) {
@@ -67,7 +67,9 @@ async function route(req, env) {
     }
     return json({ ok: false, napping: true, resetAt: nap.resetAt, error: napMessage(nap) }, 503);
   }
-  const session = await getSession(req, env);
+  const { player, admin: adminSess } = await getSessions(req, env);
+  const asAdmin = path.startsWith('/api/admin/') || req.headers.get('x-tt-as') === 'admin' || url.searchParams.get('as') === 'admin';
+  const session = asAdmin ? (adminSess || null) : (player || adminSess);
   const ip = req.headers.get('CF-Connecting-IP') || 'local';
 
   // ---------- websocket ----------
@@ -90,7 +92,7 @@ async function route(req, env) {
     const p = await verifyHandoff(url.searchParams.get('code'), env.SSO_SECRET, 'tanks');
     if (!p || !(await dir(env).rate('jti:' + p.jti, 1, 5 * 60 * 1000))) return new Response('That admin link expired or was already used. Open it again from the 0801564.xyz admin.', { status: 403, headers: { 'Cache-Control': 'no-store' } });
     const token = await signSession({ sub: 'admin', name: String(p.name || 'admin').slice(0, 30), admin: true }, env.SESSION_SECRET, Date.now(), 2 * 3600);
-    return new Response(null, { status: 302, headers: { Location: '/', 'Cache-Control': 'no-store', 'Set-Cookie': sessionCookie(token, req.url, 2 * 3600) } });
+    return new Response(null, { status: 302, headers: { Location: '/#admin', 'Cache-Control': 'no-store', 'Set-Cookie': sessionCookie(token, req.url, 2 * 3600) } });
   }
   if (path === '/api/auth/config' && method === 'GET') return json({ ok: true, signinUrl: SIGNIN, legacyPlayerLogin: env.LEGACY_PLAYER_LOGIN !== 'off' });
   if (path === '/api/auth/register' && method === 'POST') {
@@ -122,9 +124,10 @@ async function route(req, env) {
   if (path === '/api/auth/me' && method === 'GET') {
     if (!session) return json({ ok: true, loggedIn: false });
     if (session.admin) return json({ ok: true, loggedIn: true, isSuperAdmin: true, username: session.name });
-    return json({ ok: true, loggedIn: true, userId: session.sub, username: session.name });
+    return json({ ok: true, loggedIn: true, userId: session.sub, username: session.name, adminActive: !!adminSess });
   }
 
+  if (!session && path.startsWith('/api/admin/')) return json({ ok: false, error: 'Admin only' }, 403);
   if (!session) return json({ ok: false, error: 'Not logged in' }, 401);
   const user = { userId: session.admin ? null : session.sub, username: session.name, admin: !!session.admin };
 

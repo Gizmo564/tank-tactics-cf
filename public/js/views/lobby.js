@@ -55,6 +55,9 @@ async function render() {
   document.getElementById('logoutBtn').onclick = async () => { await api('/api/auth/logout', 'POST'); S.me = null; setView('auth'); };
   // Show the Admin button only for admin accounts. This is just a convenience: the admin console itself is guarded by the 0801564.xyz admin step.
   fetch('https://0801564.xyz/api/me', { credentials: 'include' }).then(r => r.json()).then(d => { if (d && d.admin) document.getElementById('adminBtn')?.removeAttribute('hidden'); }).catch(() => {});
+  document.getElementById('adminBtn').addEventListener('click', e => { // already have the 2-hour admin pass? open it right here; otherwise the link goes to 0801564.xyz to get one
+    if (S.me && S.me.adminActive) { e.preventDefault(); S.adminMode = true; setView('admin-dashboard'); }
+  });
   document.getElementById('refreshBtn').onclick = load;
   document.getElementById('createGameBtn').onclick = () => setView('wizard');
   document.getElementById('joinForm').onsubmit = async e => {

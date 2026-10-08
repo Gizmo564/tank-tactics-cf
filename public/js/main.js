@@ -11,7 +11,8 @@ initAudio();
   const r = await api('/api/auth/me');
   if (!r.ok || !r.loggedIn) return setView('auth');
   if (r.isSuperAdmin) { S.me = { isSuperAdmin: true, username: r.username }; return setView('admin-dashboard'); }
-  S.me = { userId: r.userId, username: r.username };
+  S.me = { userId: r.userId, username: r.username, adminActive: !!r.adminActive };
+  if (location.hash === '#admin') { history.replaceState(null, '', location.pathname); if (r.adminActive) { S.adminMode = true; return setView('admin-dashboard'); } }
   // shareable spectate link: https://host/#game/<id>
   const m = /^#game\/([\w-]+)$/.exec(location.hash);
   if (m) { S.currentGameId = m[1]; return setView('game'); }

@@ -14,7 +14,7 @@ async function renderDashboard() {
       <div class="who">
         <a class="btn sm ghost icon-btn" href="/api/admin/backup" title="Download every account, game and chat log as one JSON file">${ICONS.download(14)} Download backup</a>
         <span class="admin-topbar-badge">${ICONS.shield(13)} ${esc(S.me.username)}</span>
-        <button class="btn sm ghost" id="logoutBtn">Log out</button>
+        ${S.me.userId ? '<button class="btn sm" id="playerBtn">Player view</button>' : '<button class="btn sm ghost" id="logoutBtn">Log out</button>'}
       </div>
     </div>
     <div class="card mb-8"><p><span class="tag" style="background:var(--good); color:#fff; border-color:var(--good);">Persistent</span> Data is stored in Cloudflare Durable Objects (SQLite) and survives idle periods and redeploys. ${stats.ok ? `${stats.users} account(s), ${stats.games} game(s).` : ''} Download a backup now and then as insurance.</p></div>
@@ -27,7 +27,8 @@ async function renderDashboard() {
         <span class="badge ${g.status}">${statusLabel(g.status)}</span><span class="small-muted">${g.playerCount}/${g.maxPlayers}</span>
         <span class="gap-8"><button class="btn sm" data-spectate="${g.id}">Watch</button><button class="btn primary sm" data-manage="${g.id}">Manage</button></span>
       </div>`).join('')}</div>`;
-  document.getElementById('logoutBtn').onclick = async () => { await api('/api/auth/logout', 'POST'); S.me = null; setView('auth'); };
+  const lo = document.getElementById('logoutBtn'); if (lo) lo.onclick = async () => { await api('/api/auth/logout', 'POST'); S.me = null; setView('auth'); };
+  const pv = document.getElementById('playerBtn'); if (pv) pv.onclick = () => { S.adminMode = false; setView('lobby'); };
   const mig = async dryRun => {
     if (!dryRun && !confirm('Copy all accounts to 0801564.xyz now? Safe to repeat.')) return;
     const out = document.getElementById('migOut'); out.textContent = 'Working…';

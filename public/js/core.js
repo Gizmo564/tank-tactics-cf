@@ -11,17 +11,20 @@ export const S = {
   colors: [], presets: [], presetFields: [],
   pendingGame: { gameId: null },
   currentGameId: null,
-  adminGameId: null
+  adminGameId: null,
+  adminMode: false          // true while the signed-in player is acting as admin (needs the 2-hour admin cookie)
 };
 
 // ---------- helpers ----------
 export async function api(path, method = 'GET', body) {
   const opts = { method, headers: {}, credentials: 'same-origin' };
+  if (S.adminMode) opts.headers['x-tt-as'] = 'admin';
   if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
   let r;
   try { r = await fetch(path, opts); } catch { return { ok: false, error: 'Network error — check your connection' }; }
   const data = await r.json().catch(() => ({ ok: false, error: `Server error (${r.status})` }));
   if (data && data.napping) showNap(data.resetAt);
+  if (S.adminMode && r.status === 403 && path.startsWith('/api/admin')) { S.adminMode = false; toast('Admin session ended — press Admin to start another', 'bad'); setView('lobby'); return data; }
   if (r.status === 401 && S.me) { S.me = null; toast('Your session ended — please log in again', 'bad'); setView('auth'); }
   return data;
 }
@@ -113,7 +116,7 @@ export function connectGameSocket(gameId, handlers) {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const open = () => {
     if (closed) return;
-    try { ws = new WebSocket(`${proto}//${location.host}/ws/${encodeURIComponent(gameId)}`); } catch { schedule(); return; }
+    try { ws = new WebSocket(`${proto}//${location.host}/ws/${encodeURIComponent(gameId)}${S.adminMode ? '?as=admin' : ''}`); } catch { schedule(); return; }
     ws.onopen = () => {
       tries = 0; handlers.onStatus && handlers.onStatus(true);
       clearInterval(pingTimer);
