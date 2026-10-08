@@ -21,8 +21,21 @@ export async function api(path, method = 'GET', body) {
   let r;
   try { r = await fetch(path, opts); } catch { return { ok: false, error: 'Network error — check your connection' }; }
   const data = await r.json().catch(() => ({ ok: false, error: `Server error (${r.status})` }));
+  if (data && data.napping) showNap(data.resetAt);
   if (r.status === 401 && S.me) { S.me = null; toast('Your session ended — please log in again', 'bad'); setView('auth'); }
   return data;
+}
+// Nap Guard: a banner while the free daily server limit is used up (everything resumes at the reset)
+export function showNap(resetAt) {
+  let el = document.getElementById('napBanner');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'napBanner'; el.setAttribute('role', 'alert');
+    el.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9999;padding:10px 14px;text-align:center;font-weight:700;background:#ffe1d9;color:#2b2620;border-bottom:3px solid #2b2620';
+    document.body.appendChild(el);
+  }
+  const t = resetAt ? new Date(resetAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'the daily reset';
+  el.textContent = `The games are napping (free daily server limit nearly used up). Your game is paused and safe; back around ${t}.`;
+  clearTimeout(showNap.t); showNap.t = setTimeout(() => el.remove(), 90_000);
 }
 export function toast(msg, kind = '') {
   const el = document.createElement('div');
@@ -96,7 +109,7 @@ export function render() {
 // connected/disconnected so the UI can show a "Live" indicator and fall back
 // to polling while the socket is down.
 export function connectGameSocket(gameId, handlers) {
-  let ws = null, closed = false, tries = 0, timer = null, pingTimer = null;
+  let ws = null, closed = false, tries = 0, timer = null, pingTimer = null, napped = false;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const open = () => {
     if (closed) return;
@@ -112,11 +125,12 @@ export function connectGameSocket(gameId, handlers) {
       if (m.type === 'state') handlers.onState && handlers.onState(m);
       else if (m.type === 'fx') handlers.onFx && handlers.onFx(m.fx);
       else if (m.type === 'chat') handlers.onChat && handlers.onChat(m.message);
+      else if (m.type === 'nap') { napped = true; showNap(m.resetAt); }
     };
     ws.onclose = () => { clearInterval(pingTimer); if (closed) return; handlers.onStatus && handlers.onStatus(false); schedule(); };
     ws.onerror = () => { try { ws.close(); } catch { /* ignore */ } };
   };
-  const schedule = () => { if (closed) return; clearTimeout(timer); timer = setTimeout(open, Math.min(10000, 500 * 2 ** tries++)); };
+  const schedule = () => { if (closed) return; clearTimeout(timer); timer = setTimeout(open, napped ? 60_000 : Math.min(10000, 500 * 2 ** tries++)); napped = false; };
   const onVisible = () => { if (document.visibilityState === 'visible' && (!ws || ws.readyState > 1)) { tries = 0; clearTimeout(timer); open(); } };
   document.addEventListener('visibilitychange', onVisible);
   open();

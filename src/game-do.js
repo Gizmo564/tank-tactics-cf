@@ -8,6 +8,8 @@ import * as L from './lobby.js';
 import * as A from './admin-ops.js';
 import { ensureSchedule, runDue, nextWake } from './schedule.js';
 import { RateLimiter } from './ratelimit.js';
+import { getNap } from './nap.js';
+import { reportEvent } from './stats.js';
 
 const MAX_CHAT = 500;
 const notFound = { ok: false, error: 'Game not found' };
@@ -58,7 +60,12 @@ export class GameDO extends DurableObject {
     else if (!want && cur) await this.ctx.storage.deleteAlarm();
   }
   // Persist, re-arm timers, tell directory + sockets. Call after any successful mutation.
+  /** Anonymous counts for the admin panel (never blocks the game). */
+  count(type, extra = {}) { reportEvent(this.env, p => this.ctx.waitUntil(p), type, extra); }
+
   async commit(db, fx = null) {
+    // a started game that has just ended counts once as a finished game ("round")
+    if (db.meta.status === 'ended' && db.meta.gameStarted && !db.meta.statsEnded) { db.meta.statsEnded = true; this.count('round_finished'); }
     ensureSchedule(db);
     this.save(db);
     await this.syncAlarm(db);
@@ -106,7 +113,32 @@ export class GameDO extends DurableObject {
   webSocketClose(ws, code) { try { ws.close(code === 1005 || code === 1006 || !code ? 1000 : code, 'bye'); } catch { /* already closed */ } }
   webSocketError(ws) { try { ws.close(1011, 'error'); } catch { /* already closed */ } }
 
+  // While the nap guard says asleep this game is frozen: no timers fire. On waking, every timer is pushed
+  // forward by the time spent asleep so nobody loses a day of action points to the pause.
+  async napping() {
+    const nap = await getNap(this.env);
+    if (nap.level === 'asleep') {
+      if (this.napSince === undefined) this.napSince = Number(this.sql.exec("SELECT v FROM kv WHERE k='napSince'").toArray()[0]?.v) || 0;
+      if (!this.napSince) { this.napSince = Date.now(); this.sql.exec("INSERT INTO kv (k,v) VALUES ('napSince',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v", String(this.napSince)); }
+      await this.ctx.storage.setAlarm(Math.max(nap.resetAt || Date.now() + 5 * 60_000, Date.now() + 1000) + 1000);
+      return true;
+    }
+    if (this.napSince === undefined) this.napSince = Number(this.sql.exec("SELECT v FROM kv WHERE k='napSince'").toArray()[0]?.v) || 0;
+    if (this.napSince) {
+      const delta = Date.now() - this.napSince;
+      this.napSince = 0; this.sql.exec("DELETE FROM kv WHERE k='napSince'");
+      const db = this.load();
+      if (db && db.meta.status === 'active') {
+        if (db.meta.nextAPGrant) db.meta.nextAPGrant += delta;
+        if (db.meta.nextHeartSpawn) db.meta.nextHeartSpawn += delta;
+        this.save(db); await this.syncAlarm(db);
+      }
+    }
+    return false;
+  }
+
   async alarm() {
+    if (await this.napping()) return;
     const db = this.load();
     if (!db) return;
     const { changed } = runDue(db);
@@ -117,6 +149,7 @@ export class GameDO extends DurableObject {
   // user: { userId, username, admin } supplied by the Worker after verifying the session cookie.
   async call(op, user, a = {}) {
     if (op === 'create') return this.create(a);
+    await this.napping(); // wake-up bookkeeping (the Worker already refuses calls while asleep)
     const db = this.load();
     if (!db) return notFound;
     const uid = user.userId;
@@ -128,7 +161,12 @@ export class GameDO extends DurableObject {
     switch (op) {
       case 'lobby': return this.lobbyView(db, uid);
       case 'state': return { ok: true, state: E.getGameState(db, uid) };
-      case 'join': return this.mutate(db, () => L.joinLobby(db, uid, user.username, a.callsign, a.colorId, a.team));
+      case 'join': {
+        const before = db.players.length;
+        const r = await this.mutate(db, () => L.joinLobby(db, uid, user.username, a.callsign, a.colorId, a.team));
+        if (r && r.ok && db.players.length > before) this.count('player_joined', { peak: db.players.length });
+        return r;
+      }
       case 'start': return this.mutate(db, () => L.startGame(db, uid));
       case 'end': return this.mutate(db, () => L.endGame(db, uid));
       case 'leave': return this.leave(db, uid);
@@ -172,6 +210,7 @@ export class GameDO extends DurableObject {
     const j = L.joinLobby(db, host.userId, host.username, callsign, colorId, team);
     if (!j.ok) return j;
     await this.commit(db);
+    this.count('game_created'); this.count('player_joined', { peak: 1 });
     return { ok: true, gameId: id, code };
   }
 

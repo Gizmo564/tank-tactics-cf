@@ -4,6 +4,7 @@
 import { signSession, verifySession, readCookie, sessionCookie, clearCookie } from './auth.js';
 import { COLORS, PRESETS, FIELD_SPEC } from './config.js';
 import { makeCode } from './lobby.js';
+import { getNap, napMessage } from './nap.js';
 
 export { GameDO } from './game-do.js';
 export { DirectoryDO } from './directory-do.js';
@@ -41,6 +42,17 @@ async function route(req, env) {
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
   if (!env.SESSION_SECRET) return json({ ok: false, error: 'Server is missing SESSION_SECRET (see README: wrangler secret put SESSION_SECRET)' }, 500);
+  // Nap Guard: asleep = everything game-related pauses (login and the landing keep working); no-new = no new games
+  if (path === '/api/nap') return json(await getNap(env));
+  const nap = path.startsWith('/ws/') || path.startsWith('/api/games') ? await getNap(env) : null;
+  if (nap && nap.level === 'asleep') {
+    if (path.startsWith('/ws/')) { // tell the player's screen instead of leaving it reconnecting
+      const pair = new WebSocketPair();
+      pair[1].accept(); pair[1].send(JSON.stringify({ type: 'nap', resetAt: nap.resetAt })); pair[1].close(1000, 'napping');
+      return new Response(null, { status: 101, webSocket: pair[0] });
+    }
+    return json({ ok: false, napping: true, resetAt: nap.resetAt, error: napMessage(nap) }, 503);
+  }
   const session = await verifySession(readCookie(req), env.SESSION_SECRET);
   const ip = req.headers.get('CF-Connecting-IP') || 'local';
 
@@ -99,6 +111,7 @@ async function route(req, env) {
   if (path === '/api/games/presets') return json({ ok: true, presets: PRESETS, fields: FIELD_SPEC });
 
   if (path === '/api/games' && method === 'POST') {
+    if (nap && nap.level === 'no-new') return json({ ok: false, napping: true, resetAt: nap.resetAt, error: napMessage(nap) }, 503);
     if (user.admin) return json({ ok: false, error: 'The admin account manages games but does not play. Use a player account to create one.' });
     let code = null;
     for (let i = 0; i < 10 && !code; i++) { const c = makeCode(); if (!(await dir(env).findByCode(c))) code = c; }
