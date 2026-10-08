@@ -1,7 +1,7 @@
 // Tank Tactics on Cloudflare: Worker entry. Serves the REST API (same paths
 // as the original Express app) and WebSocket upgrades; static files are
 // served directly by the assets binding without invoking this code.
-import { signSession, verifySession, readCookie, sessionCookie, clearCookie } from './auth.js';
+import { signSession, verifySession, readCookie, sessionCookie, clearCookie, SSO_COOKIE, clearSsoCookie, signService } from './auth.js';
 import { COLORS, PRESETS, FIELD_SPEC } from './config.js';
 import { makeCode } from './lobby.js';
 import { getNap, napMessage } from './nap.js';
@@ -38,6 +38,18 @@ export default {
   }
 };
 
+const SIGNIN = 'https://0801564.xyz/signin';
+// Who is this? The shared 0801564.xyz sign-in first (never an admin: that role is not in that cookie), then the old
+// Tank cookie, which only matters for the super admin and for players who signed in before the move.
+async function getSession(req, env) {
+  const sso = await verifySession(readCookie(req, SSO_COOKIE), env.SSO_SECRET);
+  if (sso && typeof sso.sub === 'string' && sso.sub) return { sub: sso.sub, name: sso.name, exp: sso.exp };
+  const legacy = await verifySession(readCookie(req), env.SESSION_SECRET);
+  if (!legacy) return null;
+  if (!legacy.admin && env.LEGACY_PLAYER_LOGIN === 'off') return null;
+  return legacy;
+}
+
 async function route(req, env) {
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -53,7 +65,7 @@ async function route(req, env) {
     }
     return json({ ok: false, napping: true, resetAt: nap.resetAt, error: napMessage(nap) }, 503);
   }
-  const session = await verifySession(readCookie(req), env.SESSION_SECRET);
+  const session = await getSession(req, env);
   const ip = req.headers.get('CF-Connecting-IP') || 'local';
 
   // ---------- websocket ----------
@@ -71,12 +83,9 @@ async function route(req, env) {
   const method = req.method;
 
   // ---------- auth ----------
+  if (path === '/api/auth/config' && method === 'GET') return json({ ok: true, signinUrl: SIGNIN, legacyPlayerLogin: env.LEGACY_PLAYER_LOGIN !== 'off' });
   if (path === '/api/auth/register' && method === 'POST') {
-    if (!(await dir(env).rate('reg:' + ip, 10, 10 * 60 * 1000))) return json({ ok: false, error: 'Too many sign-ups from this network — try again later' }, 429);
-    const r = await dir(env).register(String(body.username || ''), String(body.password || ''));
-    if (!r.ok) return json(r);
-    const token = await signSession({ sub: r.user.id, name: r.user.username }, env.SESSION_SECRET);
-    return json({ ok: true, userId: r.user.id, username: r.user.username }, 200, { 'Set-Cookie': sessionCookie(token, req.url) });
+    return json({ ok: false, error: 'Sign-ups now happen once for all of 0801564.xyz.', signinUrl: SIGNIN }, 410);
   }
   if (path === '/api/auth/login' && method === 'POST') {
     const { username, password } = body;
@@ -90,12 +99,17 @@ async function route(req, env) {
       }
       return json({ ok: false, error: 'Invalid callsign or password' });
     }
+    if (env.LEGACY_PLAYER_LOGIN === 'off') return json({ ok: false, error: 'Please sign in with your 0801564.xyz account.', signinUrl: SIGNIN }, 410);
     const r = await dir(env).login(String(username), String(password));
     if (!r.ok) return json(r);
     const token = await signSession({ sub: r.user.id, name: r.user.username }, env.SESSION_SECRET);
     return json({ ok: true, userId: r.user.id, username: r.user.username }, 200, { 'Set-Cookie': sessionCookie(token, req.url) });
   }
-  if (path === '/api/auth/logout' && method === 'POST') return json({ ok: true }, 200, { 'Set-Cookie': clearCookie(req.url) });
+  if (path === '/api/auth/logout' && method === 'POST') {
+    const h = new Headers({ 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    h.append('Set-Cookie', clearCookie(req.url)); h.append('Set-Cookie', clearSsoCookie(req.url));
+    return new Response(JSON.stringify({ ok: true }), { headers: h });
+  }
   if (path === '/api/auth/me' && method === 'GET') {
     if (!session) return json({ ok: true, loggedIn: false });
     if (session.admin) return json({ ok: true, loggedIn: true, isSuperAdmin: true, username: session.name });
@@ -176,6 +190,26 @@ async function route(req, env) {
       const payload = { format: 'tank-tactics-cf-backup', version: 1, exportedAt: Date.now(), directory: await d.exportAll(), games };
       return new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json',
         'Content-Disposition': `attachment; filename="tank-tactics-backup-${new Date().toISOString().slice(0, 10)}.json"`, 'Cache-Control': 'no-store' } });
+    }
+    if (path === '/api/admin/migrate-accounts' && method === 'POST') {
+      if (!env.SSO_SECRET) return json({ ok: false, error: 'SSO_SECRET is not set on this Worker' });
+      const users = (await dir(env).exportAll()).users.map(u => ({ id: u.id, username: u.username, hash: u.hash, created_at: u.created_at }));
+      const dryRun = body.dryRun !== false; // anything but an explicit false is a dry run
+      const total = { total: users.length, imported: 0, skipped: [], renamed: [], dryRun };
+      for (let i = 0; i < users.length || i === 0; i += 500) {
+        const payload = JSON.stringify({ users: users.slice(i, i + 500), dryRun });
+        const ts = String(Date.now());
+        let res;
+        try {
+          res = await fetch((env.SSO_BASE || 'https://0801564.xyz') + '/api/internal/import-users', { method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-sso-ts': ts, 'x-sso-sig': await signService(env.SSO_SECRET, ts, payload) }, body: payload });
+        } catch (e) { return json({ ok: false, error: 'Could not reach 0801564.xyz: ' + e.message, partial: total }); }
+        const r = await res.json().catch(() => null);
+        if (!res.ok || !r || !r.ok) return json({ ok: false, error: (r && r.error) || 'Landing refused the import (HTTP ' + res.status + ')', partial: total });
+        total.imported += r.imported; total.skipped.push(...r.skipped); total.renamed.push(...r.renamed);
+        if (users.length === 0) break;
+      }
+      return json({ ok: true, ...total });
     }
     if (path === '/api/admin/stats' && method === 'GET') return json({ ok: true, ...(await dir(env).stats()) });
     const am = path.match(/^\/api\/admin\/games\/([\w-]{8,64})(?:\/([\w-]+))?$/);

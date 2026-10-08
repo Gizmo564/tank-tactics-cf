@@ -70,6 +70,19 @@ export function clearCookie(url) {
   return `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
 }
 
+// Shared 0801564.xyz sign-in cookie (issued by the landing Worker; same HMAC format as tt_session, different secret).
+export const SSO_COOKIE = 'ov_sess';
+export function clearSsoCookie(url) {
+  const u = new URL(url), secure = u.protocol === 'https:' ? '; Secure' : '';
+  const domain = u.hostname === '0801564.xyz' || u.hostname.endsWith('.0801564.xyz') ? '; Domain=.0801564.xyz' : '';
+  return `${SSO_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${domain}${secure}`;
+}
+// Server-to-server calls to the landing Worker, signed with the shared secret.
+export async function signService(secret, ts, body) {
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', await hmacKey(secret + '|svc'), enc.encode(`${ts}.${body}`)));
+  return b64u.enc(sig);
+}
+
 export function validateRegistration(username, password) {
   if (!username || !password) return 'Callsign and password required';
   if (username.length < 2 || username.length > 20) return 'Callsign must be 2-20 characters';

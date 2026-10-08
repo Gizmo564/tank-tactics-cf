@@ -18,6 +18,8 @@ async function renderDashboard() {
       </div>
     </div>
     <div class="card mb-8"><p><span class="tag" style="background:var(--good); color:#fff; border-color:var(--good);">Persistent</span> Data is stored in Cloudflare Durable Objects (SQLite) and survives idle periods and redeploys. ${stats.ok ? `${stats.users} account(s), ${stats.games} game(s).` : ''} Download a backup now and then as insurance.</p></div>
+    <div class="card mb-8"><p><b>Move accounts to 0801564.xyz</b> <span class="small-muted">— copies every player here to the shared sign-in, keeping their passwords. Do a dry run first.</span></p>
+      <div class="gap-8"><button class="btn sm" id="migDry">Dry run</button><button class="btn sm primary" id="migGo">Move accounts</button></div><pre id="migOut" class="small-muted" style="white-space:pre-wrap;margin:8px 0 0;"></pre></div>
     <div class="section-head"><h2>All games</h2><button class="btn sm ghost icon-btn" id="refreshBtn">${ICONS.refresh(14)} Refresh</button></div>
     <div id="gameList">${list.length === 0 ? `<div class="empty-state card">${ICONS.shield(40)}<p>No games have been created yet.</p></div>` : list.map(g => `
       <div class="game-row">
@@ -26,6 +28,16 @@ async function renderDashboard() {
         <span class="gap-8"><button class="btn sm" data-spectate="${g.id}">Watch</button><button class="btn primary sm" data-manage="${g.id}">Manage</button></span>
       </div>`).join('')}</div>`;
   document.getElementById('logoutBtn').onclick = async () => { await api('/api/auth/logout', 'POST'); S.me = null; setView('auth'); };
+  const mig = async dryRun => {
+    if (!dryRun && !confirm('Copy all accounts to 0801564.xyz now? Safe to repeat.')) return;
+    const out = document.getElementById('migOut'); out.textContent = 'Working…';
+    const r = await api('/api/admin/migrate-accounts', 'POST', { dryRun });
+    out.textContent = !r.ok ? 'Failed: ' + r.error + (r.partial ? '\nPartial: ' + JSON.stringify(r.partial) : '')
+      : `${r.dryRun ? 'DRY RUN — nothing changed.\n' : ''}${r.total} Tank account(s): ${r.imported} ${r.dryRun ? 'would move' : 'moved'}, ${r.skipped.length} skipped, ${r.renamed.length} renamed.`
+        + r.skipped.map(x => `\n skipped ${x.username}: ${x.reason}`).join('') + r.renamed.map(x => `\n renamed ${x.from} → ${x.to} (${x.who})`).join('');
+  };
+  document.getElementById('migDry').onclick = () => mig(true);
+  document.getElementById('migGo').onclick = () => mig(false);
   document.getElementById('refreshBtn').onclick = renderDashboard;
   document.querySelectorAll('[data-manage]').forEach(b => b.onclick = () => { S.adminGameId = b.dataset.manage; setView('admin-game'); });
   document.querySelectorAll('[data-spectate]').forEach(b => b.onclick = () => { S.currentGameId = b.dataset.spectate; setView('game'); });

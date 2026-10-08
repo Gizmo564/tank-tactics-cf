@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hashPassword, verifyPassword, signSession, verifySession, validateRegistration } from '../src/auth.js';
+import { hashPassword, verifyPassword, signSession, verifySession, validateRegistration, signService, clearSsoCookie } from '../src/auth.js';
 import { RateLimiter } from '../src/ratelimit.js';
 
 test('password hash verifies, rejects wrong password, salts differ', async () => {
@@ -29,4 +29,10 @@ test('rate limiter window', () => {
   const r = new RateLimiter();
   for (let i = 0; i < 3; i++) assert.ok(r.allow('k', 3, 1000, 100));
   assert.ok(!r.allow('k', 3, 1000, 200)); assert.ok(r.allow('k', 3, 1000, 1200));
+});
+test('shared sign-in cookie: clears across the domain, service signature matches the landing format', async () => {
+  assert.match(clearSsoCookie('https://tanks.0801564.xyz/api/auth/logout'), /^ov_sess=; .*Domain=\.0801564\.xyz.*Secure/);
+  assert.ok(!/Domain=/.test(clearSsoCookie('http://localhost:8787/x')));
+  const a = await signService('k', '1', 'body'), b = await signService('k', '1', 'body');
+  assert.equal(a, b); assert.notEqual(a, await signService('k', '1', 'body2')); assert.notEqual(a, await signService('k2', '1', 'body'));
 });
