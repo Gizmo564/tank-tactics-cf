@@ -204,7 +204,14 @@ function applyState(st, v) {
   document.getElementById('gSub').textContent = st.status === 'active' ? (m ? 'Battle in progress' : 'Spectating') : 'Game over';
   // victory banner
   document.getElementById('victory').innerHTML = st.status === 'ended' && st.winner
-    ? `<div class="card victory-banner"><div class="panel-title">${ICONS.flag(15)} Game over</div><p>${esc(st.winner)}${/draw/i.test(st.winner) ? '' : ' wins'}!</p></div>` : '';
+    ? `<div class="card victory-banner"><div class="panel-title">${ICONS.flag(15)} Game over</div><p>${esc(st.winner)}${/draw/i.test(st.winner) ? '' : ' wins'}!</p>
+      <details class="credits"><summary><b>Credits</b></summary>
+        <p><b>Created, designed, illustrated and built by Tanner Nelson</b></p>
+        <p><b>Music</b></p>
+        <p>&ldquo;Marty Gots a Plan&rdquo; by Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener noreferrer">incompetech.com</a>)<br>Licensed under Creative Commons: By Attribution 4.0 License: <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">creativecommons.org/licenses/by/4.0</a></p>
+        <p>&ldquo;Acid Trumpet&rdquo; by Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener noreferrer">incompetech.com</a>)<br>Licensed under Creative Commons: By Attribution 4.0 License: <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">creativecommons.org/licenses/by/4.0</a></p>
+        <p>Music and sound effects are from the YouTube Audio Library.</p>
+      </details></div>` : '';
   document.getElementById('fogHint').innerHTML = st.fogActive
     ? `<p class="hint mb-8">${ICONS.eye(13)} Fog of war is on — you only see tanks within your range (${st.fogHidCount} hidden right now).</p>` : '';
   if (G.sel && !liveTanks().some(t => t.id === G.sel)) G.sel = null;

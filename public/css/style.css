@@ -782,3 +782,8 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--accent-2); o
 .return-link:active { transform: rotate(0deg) translate(-1px, -1px); box-shadow: 5px 5px 0 #3d2b4f; }
 .return-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 html.in-game .return-row { display: none; }
+
+.credits { text-align: left; margin-top: 10px; }
+.credits summary { cursor: pointer; }
+.credits p { margin: 6px 0; font-size: 13px; line-height: 1.4; }
+.credits a { color: inherit; text-decoration: underline; }
